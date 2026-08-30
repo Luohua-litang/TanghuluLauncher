@@ -1,0 +1,44 @@
+plugins {
+    id 'application'
+    id 'org.jetbrains.kotlin.jvm' version '2.0.21'
+    id 'org.jetbrains.kotlin.plugin.compose' version '2.0.21'
+    id 'org.jetbrains.compose' version '1.7.3'
+}
+
+group = 'com.tanghulu'
+version = '1.0.0'
+description = 'Tanghulu Minecraft Launcher'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
+}
+
+kotlin {
+    jvmToolchain(17)
+    compilerOptions {
+        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
+    }
+}
+
+repositories {
+    mavenCentral()
+    google()
+    maven { url = uri("https://maven.pkg.jetbrains.space/public/p/compose/dev") }
+}
+
+dependencies {
+    implementation(compose.desktop.currentOs)
+    implementation(compose.material3)
+    implementation(compose.materialIconsExtended)
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-swing:1.8.1")
+}
+
+application {
+    mainClass = 'com.tanghulu.launcher.MainKt'
+}
+
+tasks.withType(JavaExec).configureEach {
+    jvmArgs '-Dfile.encoding=UTF-8'
+}
