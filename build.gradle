@@ -1,5 +1,6 @@
+import org.jetbrains.compose.desktop.application.dsl.TargetFormat
+
 plugins {
-    id 'application'
     id 'org.jetbrains.kotlin.jvm' version '2.0.21'
     id 'org.jetbrains.kotlin.plugin.compose' version '2.0.21'
     id 'org.jetbrains.compose' version '1.7.3'
@@ -35,10 +36,18 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-swing:1.8.1")
 }
 
-application {
-    mainClass = 'com.tanghulu.launcher.MainKt'
-}
-
 tasks.withType(JavaExec).configureEach {
     jvmArgs '-Dfile.encoding=UTF-8'
+}
+
+compose.desktop {
+    application {
+        mainClass = 'com.tanghulu.launcher.MainKt'
+
+        nativeDistributions {
+            targetFormats(TargetFormat.Exe)
+            packageName = 'TanghuluLauncher'
+            packageVersion = '1.0.0'
+        }
+    }
 }

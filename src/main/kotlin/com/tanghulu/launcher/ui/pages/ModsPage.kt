@@ -40,7 +40,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.tanghulu.launcher.core.ModDownloader
+import com.tanghulu.launcher.core.ModItem
 import com.tanghulu.launcher.core.ModLoader
 import com.tanghulu.launcher.ui.AppState
 import com.tanghulu.launcher.ui.components.CardShape
@@ -91,8 +91,9 @@ fun ModsPage(state: AppState) {
                 contentPadding = PaddingValues(bottom = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                itemsIndexed(state.modResults, key = { _, mod -> mod.slug }) { index, mod ->
-                    StaggerInItem(index, mod.slug in playedKeys.value, { playedKeys.value = playedKeys.value + mod.slug }) {
+                itemsIndexed(state.modResults, key = { _, mod -> mod.id }) { index, mod ->
+                    StaggerInItem(index, mod.id in playedKeys.value,
+                        { playedKeys.value = playedKeys.value + mod.id }) {
                         ModCard(mod, state)
                     }
                 }
@@ -104,6 +105,7 @@ fun ModsPage(state: AppState) {
 @Composable
 private fun LoaderMenu(state: AppState) {
     var open by remember { mutableStateOf(false) }
+    val loaders = ModrinthLoaders
     Box {
         Surface(shape = PillShape, color = MaterialTheme.colorScheme.surfaceVariant, onClick = { open = true }) {
             Row(Modifier.padding(horizontal = 16.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -112,7 +114,7 @@ private fun LoaderMenu(state: AppState) {
             }
         }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-            ModrinthLoaders.forEach { l ->
+            loaders.forEach { l ->
                 DropdownMenuItem(text = { Text(l.displayName) }, onClick = { state.modLoader = l; open = false })
             }
         }
@@ -120,7 +122,7 @@ private fun LoaderMenu(state: AppState) {
 }
 
 @Composable
-private fun ModCard(mod: ModDownloader.Mod, state: AppState) {
+private fun ModCard(mod: ModItem, state: AppState) {
     Surface(shape = CardShape, color = MaterialTheme.colorScheme.surface) {
         Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             NetworkImage(mod.iconUrl, Modifier.size(64.dp).clip(RoundedCornerShape(12.dp)))

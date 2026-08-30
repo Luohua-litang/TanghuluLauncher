@@ -13,7 +13,7 @@ import kotlin.math.max
 import kotlin.math.min
 
 /**
- * Mod 下载器：基于 Modrinth API 搜索与下载 Mod。
+ * Mod downloader: search and download mods via the Modrinth API.
  */
 class ModDownloader {
     companion object {
@@ -22,17 +22,6 @@ class ModDownloader {
 
     fun interface Progress {
         fun update(percent: Int, stage: String)
-    }
-
-    class Mod(
-        @JvmField val slug: String,
-        @JvmField val projectId: String?,
-        @JvmField val title: String,
-        @JvmField val description: String?,
-        @JvmField val iconUrl: String?,
-        @JvmField val downloads: Long
-    ) {
-        override fun toString(): String = title
     }
 
     class ModVersion(
@@ -46,34 +35,33 @@ class ModDownloader {
     )
 
     @Throws(IOException::class)
-    fun search(query: String, limit: Int): List<Mod> {
+    fun search(query: String, limit: Int): List<ModItem> {
         val url = API_BASE + "/search?query=" + enc(query) +
             "&facets=" + enc("[[\"project_type:mod\"]]") +
             "&limit=" + max(1, min(limit, 100))
         return parseHits(HttpUtil.getText(url))
     }
 
-    /** 热门榜：按下载量排序的 Mod。 */
+    /** Trending list: mods sorted by download count. */
     @Throws(IOException::class)
-    fun trending(limit: Int): List<Mod> {
+    fun trending(limit: Int): List<ModItem> {
         val url = API_BASE + "/search?index=downloads" +
             "&facets=" + enc("[[\"project_type:mod\"]]") +
             "&limit=" + max(1, min(limit, 100))
         return parseHits(HttpUtil.getText(url))
     }
 
-    private fun parseHits(text: String): List<Mod> {
+    private fun parseHits(text: String): List<ModItem> {
         val root = Json.asObject(Json.parse(text))
-        val result = ArrayList<Mod>()
+        val result = ArrayList<ModItem>()
         if (root == null) return result
         for (o in Json.asArray(root["hits"]) ?: emptyList()) {
             val h = Json.asObject(o) ?: continue
             val slug = Json.optString(h, "slug")
             if (slug.isNullOrEmpty()) continue
             result.add(
-                Mod(
+                ModItem(
                     slug,
-                    Json.optString(h, "project_id"),
                     Json.optString(h, "title", slug) ?: slug,
                     Json.optString(h, "description"),
                     Json.optString(h, "icon_url"),
@@ -111,16 +99,16 @@ class ModDownloader {
 
     @Throws(IOException::class)
     fun download(
-        mod: Mod, gameVersion: String, loader: String?, modsDir: Path,
+        mod: ModItem, gameVersion: String, loader: String?, modsDir: Path,
         log: Consumer<String>, progress: Progress?
     ): Path {
-        val ver = pickVersion(mod.slug, gameVersion, loader)
+        val ver = pickVersion(mod.id, gameVersion, loader)
             ?: throw IOException(
                 "未找到匹配版本: " + mod.title + "（游戏 " + gameVersion +
                     (if (loader.isNullOrEmpty()) "" else " / " + loader) + "）"
             )
         val name = if (!ver.fileName.isNullOrEmpty()) ver.fileName
-        else mod.slug + "-" + ver.versionNumber + ".jar"
+        else mod.id + "-" + ver.versionNumber + ".jar"
         val target = modsDir.resolve(name)
         if (Files.isRegularFile(target) && !ver.sha1.isNullOrEmpty()
             && ver.sha1.equals(FileUtil.sha1(target), true)

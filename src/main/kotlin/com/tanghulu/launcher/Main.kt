@@ -11,10 +11,10 @@ import com.tanghulu.launcher.util.Log
 import com.tanghulu.launcher.util.OperatingSystem
 
 fun main() {
-    // 初始化日志：写入应用数据目录，保留 7 天
+    // Initialize logging: write into the app data directory, retained for 7 days
     Log.init(OperatingSystem.appDataDir().resolve("logs"))
 
-    // 窗口图标：加载资源里的 Tanghulu.png，缺失时回退到系统默认图标
+    // Window icon: load Tanghulu.png from resources, fall back to the system default icon if missing
     val icon = runCatching {
         object {}.javaClass.getResourceAsStream("/images/Tanghulu.png")?.use {
             BitmapPainter(loadImageBitmap(it))

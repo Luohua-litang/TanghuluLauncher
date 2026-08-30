@@ -34,14 +34,14 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import org.jetbrains.skia.Image as SkiaImage
 
-/** 把字节解码为 ImageBitmap（皮肤 / 网络图通用）。 */
+/** Decode bytes into an ImageBitmap (shared by skins / network images). */
 fun decodeImage(bytes: ByteArray): ImageBitmap? = try {
     SkiaImage.makeFromEncoded(bytes).toComposeImageBitmap()
 } catch (_: Exception) {
     null
 }
 
-/** 网络图片，自动加载 + 占位。 */
+/** Network image with automatic loading + placeholder. */
 @Composable
 fun NetworkImage(url: String?, modifier: Modifier = Modifier, contentDescription: String? = null) {
     var bitmap by remember(url) { mutableStateOf<ImageBitmap?>(null) }
@@ -68,7 +68,7 @@ fun NetworkImage(url: String?, modifier: Modifier = Modifier, contentDescription
     }
 }
 
-/** 圆形头像容器。 */
+/** Circular avatar container. */
 @Composable
 fun AvatarFrame(bitmap: ImageBitmap?, size: Dp = 48.dp, modifier: Modifier = Modifier) {
     Box(
@@ -83,11 +83,11 @@ fun AvatarFrame(bitmap: ImageBitmap?, size: Dp = 48.dp, modifier: Modifier = Mod
     }
 }
 
-/** 圆角面板背景形状。 */
+/** Rounded panel background shape. */
 val CardShape = RoundedCornerShape(16.dp)
 val PillShape = RoundedCornerShape(50)
 
-/** 人类可读的字节大小。 */
+/** Human-readable byte size. */
 fun formatBytes(bytes: Long): String {
     if (bytes < 1024) return "$bytes B"
     val kb = bytes / 1024.0
@@ -98,8 +98,8 @@ fun formatBytes(bytes: Long): String {
 }
 
 /**
- * 首次进入组合时播放淡入 + 轻微上移的进场动画。
- * 可用 [delayMillis] 让多个组件错开依次出现（stagger）。
+ * Plays a fade-in + slight upward entrance animation when first entering composition.
+ * Use [delayMillis] to stagger multiple components' appearance.
  */
 @Composable
 fun AnimatedAppear(
@@ -122,7 +122,7 @@ fun AnimatedAppear(
 }
 
 /**
- * 从右侧水平飞入 + 淡入。可用 [delayMillis] 让多个组件依次飞入（stagger）。
+ * Slides in horizontally from the right + fades in. Use [delayMillis] to stagger multiple components.
  */
 @Composable
 fun AnimatedFlyIn(
@@ -145,12 +145,13 @@ fun AnimatedFlyIn(
 }
 
 /**
- * 列表项的错峰（stagger）入场动画：淡入 + 轻微上移。
- * 每个项只播放一次，之后直接显示，避免在 Lazy 列表滚动回收重建时反复重播造成卡顿。
+ * Staggered entrance animation for list items: fade-in + slight upward movement.
+ * Each item plays only once, then is shown directly, avoiding repeated replays when the Lazy list
+ * recycles items during scrolling, which would cause jank.
  *
- * @param index 在列表中的位置，用于计算错峰延迟（限制在前 8 个周期内，避免长时间等待）。
- * @param played 该项是否已播放过动画。
- * @param onShown 动画开始播放时回调，调用方应在此记录该项已播放。
+ * @param index position in the list, used to compute the stagger delay (capped within the first 8 cycles to avoid a long wait).
+ * @param played whether this item has already played its animation.
+ * @param onShown called when the animation starts playing; callers should record that the item has played here.
  */
 @Composable
 fun StaggerInItem(

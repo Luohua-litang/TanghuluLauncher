@@ -3,7 +3,7 @@ package com.tanghulu.launcher.core.model
 import com.tanghulu.launcher.util.Json
 
 /**
- * 解析后的版本信息（来自 versions/&lt;id&gt;/&lt;id&gt;.json）。
+ * Parsed version info (from versions/&lt;id&gt;/&lt;id&gt;.json).
  */
 class VersionInfo(
     @JvmField val id: String?,

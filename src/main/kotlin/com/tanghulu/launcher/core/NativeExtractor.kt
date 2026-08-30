@@ -9,11 +9,11 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipFile
 
 /**
- * 解压 natives 库到 natives 目录。
+ * Extract natives libraries into the natives directory.
  */
 object NativeExtractor {
 
-    /** 将 natives jar 解压到 natives 目录（跳过 META-INF）。 */
+    /** Extract a natives jar into the natives directory (skipping META-INF). */
     @JvmStatic
     @Throws(IOException::class)
     fun extract(jarFile: Path, nativesDir: Path) {
@@ -28,7 +28,7 @@ object NativeExtractor {
                 if (entry.isDirectory) continue
                 val name = entry.name
                 if (name.startsWith("META-INF/") || name.startsWith("META-INF\\")) continue
-                // 防止路径穿越
+                // Prevent path traversal
                 val target = nativesDir.resolve(name).normalize()
                 if (!target.startsWith(nativesDir)) continue
                 Files.createDirectories(target.parent)
@@ -39,7 +39,7 @@ object NativeExtractor {
         }
     }
 
-    /** 清空并重建 natives 目录。 */
+    /** Clear and recreate the natives directory. */
     @JvmStatic
     @Throws(IOException::class)
     fun clean(nativesDir: Path) {

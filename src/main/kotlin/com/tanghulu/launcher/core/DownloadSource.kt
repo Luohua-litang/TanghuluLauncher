@@ -3,14 +3,14 @@ package com.tanghulu.launcher.core
 import java.util.LinkedHashSet
 
 /**
- * 下载源配置。官方源 + BMCLAPI 国内镜像。
+ * Download source configuration. Official source + BMCLAPI mirror.
  */
 class DownloadSource private constructor(
     private val name: String,
     private val manifestUrl: String,
-    /** 版本 jar 模板，{sha1} 为对象哈希，{id} 为版本 id */
+    /** Version jar template; {sha1} is the object hash, {id} is the version id */
     private val versionJarTemplate: String,
-    /** 资源对象模板，{h2} 为哈希前两位，{hash} 为完整哈希 */
+    /** Asset object template; {h2} is the first two hash chars, {hash} is the full hash */
     private val assetObjectTemplate: String,
     private val rewriteLibrary: Boolean
 ) {
@@ -18,7 +18,7 @@ class DownloadSource private constructor(
 
     fun manifestUrl(): String = manifestUrl
 
-    /** 版本 JSON 下载地址（来自 manifest 条目 url），镜像可重写。 */
+    /** Version JSON download URL (from the manifest entry url); mirrors may rewrite it. */
     fun versionJson(originalUrl: String?): String? {
         if (rewriteLibrary && originalUrl != null && originalUrl.startsWith("https://launchermeta.mojang.com/")) {
             return "https://bmclapi2.bangbang93.com/version/" + versionIdFromManifestUrl(originalUrl) + "/json"
@@ -43,7 +43,7 @@ class DownloadSource private constructor(
         return assetObjectTemplate.replace("{h2}", hash.substring(0, 2)).replace("{hash}", hash)
     }
 
-    /** 库文件 URL 重写（镜像源把官方 host 换成镜像）。 */
+    /** Library URL rewrite (mirror sources swap the official host for the mirror). */
     fun library(originalUrl: String?): String? {
         if (!rewriteLibrary || originalUrl == null) return originalUrl
         if (originalUrl.startsWith("https://libraries.minecraft.net/")) {
@@ -53,17 +53,17 @@ class DownloadSource private constructor(
         return originalUrl
     }
 
-    // ---------- 候选 URL（多源自动重试） ----------
+    // ---------- Candidate URLs (multi-source auto retry) ----------
 
-    /** 库文件候选地址：首选当前源，失败时自动尝试另一个源。 */
+    /** Library candidate URLs: prefer the current source, fall back to the other one on failure. */
     fun libraryCandidates(originalUrl: String?): List<String> =
         candidates({ library(originalUrl) }, { other().library(originalUrl) })
 
-    /** 资源对象候选地址。 */
+    /** Asset object candidate URLs. */
     fun assetObjectCandidates(hash: String?): List<String> =
         candidates({ assetObject(hash) }, { other().assetObject(hash) })
 
-    /** 版本 jar 候选地址。 */
+    /** Version jar candidate URLs. */
     fun versionJarCandidates(id: String, sha1: String?): List<String> =
         candidates({ versionJar(id, sha1) }, { other().versionJar(id, sha1) })
 
@@ -79,11 +79,11 @@ class DownloadSource private constructor(
             val url = supplier()
             if (!url.isNullOrEmpty()) set.add(url)
         } catch (ignored: Exception) {
-            // 单个源 URL 生成失败不影响其他候选
+            // a single source URL generation failure must not affect other candidates
         }
     }
 
-    /** 与当前源不同的另一个源，用于降级。 */
+    /** The other source (different from this one), used for fallback. */
     private fun other(): DownloadSource {
         for (s in all()) {
             if (s !== this) return s

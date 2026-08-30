@@ -9,15 +9,15 @@ import java.nio.file.Files
 import java.nio.file.Path
 
 /**
- * 资源（assets）管理：下载资源索引与资源对象文件。
+ * Asset management: downloads the asset index and asset object files.
  */
 class AssetManager {
 
-    /** 资源索引本地文件。 */
+    /** Local file for the asset index. */
     fun assetIndexFile(gameDir: Path, id: String): Path =
         gameDir.resolve("assets").resolve("indexes").resolve("$id.json")
 
-    /** 确保资源索引存在并返回解析后的对象。 */
+    /** Ensure the asset index exists and return the parsed object. */
     @Throws(IOException::class)
     fun loadOrDownloadIndex(gameDir: Path, id: String, indexUrl: String?): Map<String, Any?> {
         val indexFile = assetIndexFile(gameDir, id)
@@ -33,7 +33,7 @@ class AssetManager {
         return Json.asObject(Json.parse(text)) ?: throw IOException("Invalid asset index for $id")
     }
 
-    /** 列出资源索引中的所有对象哈希。 */
+    /** List all object hashes in the asset index. */
     fun listObjectHashes(index: Map<String, Any?>): List<String> {
         val objects = Json.asObject(index["objects"]) ?: return emptyList()
         val hashes = ArrayList<String>(objects.size)
@@ -47,7 +47,7 @@ class AssetManager {
         return hashes
     }
 
-    /** 构建缺失资源对象的下载任务。 */
+    /** Build download tasks for missing asset objects. */
     fun buildObjectTasks(gameDir: Path, index: Map<String, Any?>, source: DownloadSource): List<DownloadTask> {
         val objects = Json.asObject(index["objects"]) ?: return emptyList()
         val tasks = ArrayList<DownloadTask>()
@@ -57,7 +57,7 @@ class AssetManager {
             val size = Json.optLong(entry, "size", 0)
             val target = gameDir.resolve("assets").resolve("objects")
                 .resolve(hash.substring(0, 2)).resolve(hash)
-            // 只下载缺失或损坏的文件
+            // Only download missing or corrupted files
             if (Files.isRegularFile(target) && hash.equals(FileUtil.sha1(target), true)) continue
             tasks.add(DownloadTask(source.assetObjectCandidates(hash), target, hash, size, key))
         }

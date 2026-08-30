@@ -4,8 +4,8 @@ import java.nio.file.Path
 import java.util.Collections
 
 /**
- * 单个下载任务。
- * 支持多个候选地址：下载失败时按顺序尝试下一个源。
+ * A single download task.
+ * Supports multiple candidate URLs: tries the next source in order when a download fails.
  */
 class DownloadTask(
     urls: List<String>?,
@@ -14,7 +14,7 @@ class DownloadTask(
     @JvmField val size: Long,
     @JvmField val label: String?
 ) {
-    /** 候选下载地址，按优先顺序排列。 */
+    /** Candidate download URLs, ordered by priority. */
     @JvmField
     val urls: List<String> = if (urls.isNullOrEmpty()) emptyList()
         else Collections.unmodifiableList(ArrayList(urls))
@@ -22,7 +22,7 @@ class DownloadTask(
     constructor(url: String, target: Path, sha1: String?, size: Long, label: String?) :
         this(listOf(url), target, sha1, size, label)
 
-    /** 首选地址。 */
+    /** The preferred URL. */
     fun primaryUrl(): String? = if (urls.isEmpty()) null else urls[0]
 
     override fun toString(): String = label ?: target.fileName.toString()

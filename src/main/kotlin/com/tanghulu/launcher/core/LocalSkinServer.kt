@@ -14,8 +14,8 @@ import java.util.LinkedHashMap
 import java.util.UUID
 
 /**
- * 本地 Yggdrasil 皮肤服务器。
- * 配合 authlib-injector 使用，让离线模式也能显示启动器自定义的本地皮肤。
+ * Local Yggdrasil skin server.
+ * Works together with authlib-injector so that offline mode can also show the launcher's custom local skin.
  */
 object LocalSkinServer {
 
@@ -23,7 +23,7 @@ object LocalSkinServer {
     private var currentPlayer: String? = null
     private var port = -1
 
-    /** 当前 API 根地址，未启动则返回 null。 */
+    /** The current API root URL, or null when not started. */
     @JvmStatic
     @Synchronized
     fun apiRoot(): String? {
@@ -31,13 +31,13 @@ object LocalSkinServer {
         return "http://127.0.0.1:$port"
     }
 
-    /** 是否已为指定玩家启动了皮肤服务器。 */
+    /** Whether the skin server has been started for the given player. */
     @JvmStatic
     @Synchronized
     fun isRunningFor(playerName: String?): Boolean =
         server != null && playerName != null && playerName == currentPlayer
 
-    /** 为指定玩家启动皮肤服务器（若已为该玩家启动则复用）。 */
+    /** Start the skin server for the given player (reuse it if already started for that player). */
     @JvmStatic
     @Synchronized
     fun startFor(playerName: String?): String? {
@@ -59,7 +59,7 @@ object LocalSkinServer {
         }
     }
 
-    /** 停止皮肤服务器。 */
+    /** Stop the skin server. */
     @JvmStatic
     @Synchronized
     fun stop() {
@@ -159,7 +159,7 @@ object LocalSkinServer {
         ex.responseBody.use { os -> os.write(body) }
     }
 
-    /** 生成与 MinecraftLauncher 一致的离线 UUID（OfflinePlayer:名字）。 */
+    /** Generate an offline UUID consistent with MinecraftLauncher (OfflinePlayer:name). */
     @JvmStatic
     fun offlineUuid(playerName: String): String {
         val uuid = UUID.nameUUIDFromBytes(

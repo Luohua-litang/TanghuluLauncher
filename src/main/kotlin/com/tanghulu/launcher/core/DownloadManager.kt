@@ -10,16 +10,16 @@ import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.max
 
 /**
- * 并发下载管理器：多线程并行下载任务，实时汇报进度。
+ * Concurrent download manager: downloads tasks in parallel with multiple threads and reports progress in real time.
  */
 class DownloadManager(threads: Int) {
     fun interface ProgressListener {
         /**
-         * @param done 已完成文件数
-         * @param total 总文件数
-         * @param current 当前文件名（完成/失败时为 null 或标签）
-         * @param fileDone 当前文件已下载字节
-         * @param fileTotal 当前文件总字节（-1 表示未知）
+         * @param done number of completed files
+         * @param total total number of files
+         * @param current current file name (null or the label when done/failed)
+         * @param fileDone bytes downloaded for the current file
+         * @param fileTotal total bytes of the current file (-1 means unknown)
          */
         fun onProgress(done: Int, total: Int, current: String?, fileDone: Long, fileTotal: Long)
     }
@@ -29,9 +29,9 @@ class DownloadManager(threads: Int) {
     constructor() : this(8)
 
     /**
-     * 并行下载所有任务。
+     * Download all tasks in parallel.
      *
-     * @return 实际下载的文件数（跳过已存在且校验通过的不计）
+     * @return number of files actually downloaded (skipping files that already exist and pass verification)
      */
     @Throws(IOException::class)
     fun downloadAll(tasks: List<DownloadTask>, listener: ProgressListener?): Int {

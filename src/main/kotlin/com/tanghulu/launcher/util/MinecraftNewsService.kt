@@ -6,19 +6,19 @@ import java.util.function.Consumer
 import java.util.regex.Pattern
 
 /**
- * Minecraft 官方新闻获取服务。
- * 数据源为 Mojang 官方启动器新闻接口（launchercontent.mojang.com）。
+ * Minecraft official news fetch service.
+ * Data source is the Mojang launcher news endpoint (launchercontent.mojang.com).
  */
 object MinecraftNewsService {
 
-    /** 一条新闻。 */
+    /** A single news item. */
     class NewsItem(
         @JvmField val title: String?,
-        /** 发布日期，格式 yyyy-MM-dd。 */
+        /** Publication date in yyyy-MM-dd format. */
         @JvmField val date: String?,
-        /** 分类标签，如 "Java Edition"，可能为空。 */
+        /** Category tag such as "Java Edition"; may be empty. */
         @JvmField val tag: String?,
-        /** 摘要文本，可能为空。 */
+        /** Summary text; may be empty. */
         @JvmField val text: String?,
         @JvmField val link: String?
     )
@@ -31,8 +31,8 @@ object MinecraftNewsService {
     }
 
     /**
-     * 异步获取官方新闻（按日期倒序）。
-     * 回调在后台线程执行，UI 层收到后需自行切回 JavaFX 线程。
+     * Fetch official news asynchronously (newest first).
+     * Callbacks run on a background thread; the UI layer must switch back to the JavaFX thread.
      */
     @JvmStatic
     fun fetchNews(limit: Int, onSuccess: Consumer<List<NewsItem>>, onError: Consumer<Exception>) {
@@ -74,7 +74,7 @@ object MinecraftNewsService {
     private val HTML_TAG = Pattern.compile("<[^>]+>")
     private val WHITESPACE = Pattern.compile("\\s+")
 
-    /** 去掉 HTML 标签、压缩空白并截断摘要。 */
+    /** Strip HTML tags, collapse whitespace and truncate the summary. */
     private fun clean(s: String?): String? {
         if (s == null) return null
         val m = HTML_TAG.matcher(s)

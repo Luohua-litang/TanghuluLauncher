@@ -25,8 +25,8 @@ import com.tanghulu.launcher.ui.AppState
 import com.tanghulu.launcher.ui.components.formatBytes
 
 /**
- * 下载 / 启动进度的独立弹窗。
- * 当 [AppState.launchProgress] 不为空时弹出，下载完成 / 失败后自动关闭。
+ * Standalone dialog for download / launch progress.
+ * Shown when [AppState.launchProgress] is non-null, and closes automatically once the download finishes or fails.
  */
 @Composable
 fun DownloadProgressDialog(state: AppState) {
@@ -34,7 +34,7 @@ fun DownloadProgressDialog(state: AppState) {
     val file = state.fileProgress
 
     DialogWindow(
-        onCloseRequest = {}, // 下载中不可关闭，进度归零后自动消失
+        onCloseRequest = {}, // Cannot be closed while downloading; disappears automatically once progress resets to zero
         title = "下载进度",
         resizable = false,
         state = rememberDialogState(size = DpSize(480.dp, 260.dp)),

@@ -8,44 +8,55 @@ import java.nio.file.Path
 import java.nio.file.Paths
 import java.nio.file.StandardCopyOption
 import java.util.LinkedHashSet
+import java.util.concurrent.ConcurrentHashMap
 import java.util.function.Consumer
 import java.util.regex.Pattern
 import java.util.zip.ZipEntry
 import java.util.zip.ZipFile
 
 /**
- * Java 运行时检测与匹配：解析 java 可执行文件的版本号，
- * 并在本机常见位置查找满足指定大版本要求的 Java。
+ * Java runtime detection and matching: parses the version of a java executable,
+ * then finds a Java satisfying the required major version at common local locations.
  */
 object JavaRuntime {
     private val VERSION = Pattern.compile("version \"(\\d+)(?:\\.(\\d+))?")
 
-    /** 检测某个 java 可执行文件的主版本号（如 8 / 17 / 21 / 25），失败返回 -1。 */
+    /** Cache of java executable -> major version to avoid running `java -version` repeatedly. */
+    private val majorCache = ConcurrentHashMap<Path, Int>()
+
+    /** Detect the major version of a java executable (e.g. 8 / 17 / 21 / 25); returns -1 on failure. */
     @JvmStatic
     fun detectMajor(javaExe: Path?): Int {
         if (javaExe == null || !Files.isRegularFile(javaExe)) return -1
-        return try {
+        val key = javaExe.toAbsolutePath().normalize()
+        majorCache[key]?.let { return it }
+        val major = try {
             val pb = ProcessBuilder(javaExe.toString(), "-version")
             pb.redirectErrorStream(true)
             val p = pb.start()
             val out = String(p.inputStream.readAllBytes(), StandardCharsets.UTF_8)
             p.waitFor()
             val m = VERSION.matcher(out)
-            if (!m.find()) return -1
-            var major = m.group(1).toInt()
-            // JDK 8 及更早输出 "1.8.0_xxx" 这类格式
-            if (major == 1 && m.group(2) != null) {
-                major = m.group(2).toInt()
+            if (!m.find()) {
+                -1
+            } else {
+                var v = m.group(1).toInt()
+                // JDK 8 and earlier print "1.8.0_xxx"-style versions
+                if (v == 1 && m.group(2) != null) {
+                    v = m.group(2).toInt()
+                }
+                v
             }
-            major
         } catch (e: Exception) {
             -1
         }
+        majorCache[key] = major
+        return major
     }
 
     /**
-     * 查找满足 [requiredMajor] 要求的 java 可执行文件。
-     * 优先返回版本完全一致的；否则返回大于要求且最接近的；找不到返回 null。
+     * Find a java executable satisfying [requiredMajor].
+     * Prefer an exact match; otherwise the nearest higher version; null if none found.
      */
     @JvmStatic
     fun findJava(requiredMajor: Int): Path? {
@@ -63,7 +74,7 @@ object JavaRuntime {
         return nearestHigher
     }
 
-    /** 只查找主版本号精确等于 [major] 的 java 可执行文件，找不到返回 null。 */
+    /** Find a java executable whose major version exactly equals [major]; null if none found. */
     @JvmStatic
     fun findJavaExact(major: Int): Path? {
         for (p in candidates()) {
@@ -73,8 +84,8 @@ object JavaRuntime {
     }
 
     /**
-     * 列出本机所有候选 Java 运行时（含主版本号，按版本从高到低排序）。
-     * 会逐个执行 `java -version`，建议在 IO 线程调用。
+     * List all candidate local Java runtimes (with major version, newest first).
+     * Runs `java -version` for each; call on an IO thread.
      */
     @JvmStatic
     fun listJavas(): List<JavaInfo> {
@@ -89,9 +100,9 @@ object JavaRuntime {
     }
 
     /**
-     * 确保本机存在 Java 8 运行时（老版本 Minecraft 需要）。
-     * 查找顺序：本机已安装 Java 8 -> 缓存目录 -> 自动下载并解压。
-     * 返回 java 可执行文件路径，失败返回 null（不抛异常）。
+     * Ensure a Java 8 runtime exists locally (required by old Minecraft versions).
+     * Search order: installed Java 8 -> cache directory -> auto-download and extract.
+     * Returns the java executable path, or null on failure (does not throw).
      */
     @JvmStatic
     fun ensureJava8(log: Consumer<String>?): Path? {
@@ -109,7 +120,7 @@ object JavaRuntime {
         }
     }
 
-    /** 通过 Adoptium 下载 JRE 8 并解压到 [dest]，返回其中的 java 可执行文件。 */
+    /** Download JRE 8 from Adoptium and extract to [dest], returning its java executable. */
     @Throws(Exception::class)
     private fun downloadJava8(dest: Path, log: Consumer<String>?): Path? {
         var url: String? = null
@@ -132,7 +143,7 @@ object JavaRuntime {
                 }
             }
         } catch (ignored: Exception) {
-            // API 不可用时走下方固定镜像链接兜底
+            // fall back to the fixed mirror URL below when the API is unavailable
         }
         if (url.isNullOrBlank()) {
             url = "https://mirrors.tuna.tsinghua.edu.cn/Adoptium/8/jre/x64/windows/" +
@@ -165,7 +176,7 @@ object JavaRuntime {
         return javaExe
     }
 
-    /** 解压 zip 到目标目录，自动跳过第一层根目录（如 jdk8u...-jre/）。 */
+    /** Extract a zip into the target directory, skipping the first root folder (e.g. jdk8u...-jre/). */
     @Throws(IOException::class)
     private fun extractZip(zip: Path, dest: Path) {
         ZipFile(zip.toFile()).use { zf ->
@@ -178,7 +189,7 @@ object JavaRuntime {
                 if (idx >= 0) name = name.substring(idx + 1)
                 if (name.isEmpty()) continue
                 val target = dest.resolve(name).normalize()
-                if (!target.startsWith(dest)) continue // 防路径穿越
+                if (!target.startsWith(dest)) continue // prevent path traversal
                 Files.createDirectories(target.parent)
                 zf.getInputStream(entry).use { input ->
                     Files.copy(input, target, StandardCopyOption.REPLACE_EXISTING)
@@ -187,15 +198,15 @@ object JavaRuntime {
         }
     }
 
-    /** 收集本机候选 java 可执行文件（去重、绝对路径）。 */
+    /** Collect candidate java executables locally (deduped, absolute paths). */
     private fun candidates(): List<Path> {
         val set = LinkedHashSet<Path>()
         val exe = OperatingSystem.CURRENT_OS.javaExecutable()
-        // 1. 启动器自身 JVM（打包后即内置 runtime 里的 java）
+        // 1. The launcher's own JVM (the bundled runtime when packaged)
         addFromHome(set, System.getProperty("java.home"), exe)
         // 2. JAVA_HOME
         addFromHome(set, System.getenv("JAVA_HOME"), exe)
-        // 3. PATH 中所有目录
+        // 3. All directories on PATH
         val pathEnv = System.getenv("PATH")
         if (pathEnv != null) {
             for (dir in pathEnv.split(File.pathSeparator)) {
@@ -204,7 +215,7 @@ object JavaRuntime {
                 if (Files.isRegularFile(j)) set.add(j.toAbsolutePath().normalize())
             }
         }
-        // 4. Windows 常见安装目录
+        // 4. Common Windows install locations
         if (OperatingSystem.CURRENT_OS.isWindows()) {
             val bases = arrayOf(
                 "C:/Program Files/Eclipse Adoptium",
@@ -223,7 +234,7 @@ object JavaRuntime {
                         for (dd in dirs) addFromHome(set, dd.toString(), exe)
                     }
                 } catch (ignored: IOException) {
-                    // 忽略无法读取的目录
+                    // ignore unreadable directories
                 }
             }
         }
@@ -237,9 +248,9 @@ object JavaRuntime {
     }
 }
 
-/** 本机检测到的单个 Java 运行时信息。 */
+/** Info about a single Java runtime detected locally. */
 data class JavaInfo(val path: Path, val major: Int) {
-    /** JDK/JRE 根目录名，如 "jdk-17.0.20+7"。 */
+    /** JDK/JRE root folder name, e.g. "jdk-17.0.20+7". */
     val homeName: String
         get() = path.parent?.parent?.fileName?.toString().orEmpty()
 }

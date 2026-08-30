@@ -1,12 +1,13 @@
 package com.tanghulu.launcher.util
 
+import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
 import java.util.Locale
 
 /**
- * 操作系统枚举，集中处理平台差异。
- * 进程启动时解析一次 [CURRENT_OS]，避免散落的 os.name 字符串判断。
+ * Operating system enum that centralizes platform differences.
+ * [CURRENT_OS] is resolved once at process startup to avoid scattered os.name checks.
  */
 enum class OperatingSystem(private val mojangNameValue: String) {
     WINDOWS("windows"),
@@ -14,17 +15,17 @@ enum class OperatingSystem(private val mojangNameValue: String) {
     LINUX("linux"),
     UNKNOWN("universal");
 
-    /** Mojang 在 natives 分类与规则匹配中使用的操作系统名。 */
+    /** OS name used by Mojang for natives classification and rule matching. */
     fun mojangName(): String = mojangNameValue
 
     fun isWindows(): Boolean = this == WINDOWS
     fun isMac(): Boolean = this == MACOS
 
-    /** Java 可执行文件名（Windows 带 .exe）。 */
+    /** Java executable file name (.exe on Windows). */
     fun javaExecutable(): String = if (isWindows()) "java.exe" else "java"
 
     companion object {
-        /** 当前运行平台（进程启动时解析一次）。 */
+        /** The currently running platform (resolved once at startup). */
         @JvmField
         val CURRENT_OS: OperatingSystem = parse(System.getProperty("os.name", ""))
 
@@ -39,7 +40,7 @@ enum class OperatingSystem(private val mojangNameValue: String) {
             }
         }
 
-        /** 各平台默认的 Minecraft 游戏目录（.minecraft）。 */
+        /** Default Minecraft game directory per platform (.minecraft). */
         @JvmStatic
         fun minecraftDir(): Path = when {
             CURRENT_OS.isWindows() -> {
@@ -53,22 +54,40 @@ enum class OperatingSystem(private val mojangNameValue: String) {
             else -> Paths.get(System.getProperty("user.home"), ".minecraft")
         }
 
-        /** 应用数据目录（配置与日志存放处）。 */
+        /**
+         * Directory that contains the launcher executable (the APP_HOME root).
+         * When packaged by Compose Desktop the classes live in a jar under APP_HOME/lib
+         * (or APP_HOME/app for jpackage), so we walk up one level from that folder.
+         * Falls back to the working directory.
+         */
         @JvmStatic
-        fun appDataDir(): Path = when {
-            CURRENT_OS.isWindows() -> {
-                val appData = System.getenv("APPDATA")
-                if (!appData.isNullOrBlank()) Paths.get(appData, "TanghuluLauncher")
-                else Paths.get(System.getProperty("user.home"), ".tanghulu_launcher")
+        fun launcherDir(): Path {
+            val codeSource = OperatingSystem::class.java.protectionDomain?.codeSource
+            if (codeSource != null) {
+                try {
+                    val location = Paths.get(codeSource.location.toURI())
+                    if (Files.isRegularFile(location)) {
+                        val parent = location.parent
+                        val name = parent?.fileName?.toString()
+                        if (parent != null && (name.equals("lib", true) || name.equals("app", true))) {
+                            // Compose Desktop "lib/" or jpackage "app/" layout -> APP_HOME root
+                            return parent.parent ?: parent
+                        }
+                        return parent ?: Paths.get(System.getProperty("user.dir"))
+                    }
+                    return location
+                } catch (_: Exception) {
+                    // fall through to the working directory
+                }
             }
-            CURRENT_OS.isMac() -> Paths.get(
-                System.getProperty("user.home"), "Library", "Application Support", "TanghuluLauncher"
-            )
-            else -> {
-                val xdg = System.getenv("XDG_CONFIG_HOME")
-                if (!xdg.isNullOrBlank()) Paths.get(xdg, "TanghuluLauncher")
-                else Paths.get(System.getProperty("user.home"), ".tanghulu_launcher")
-            }
+            return Paths.get(System.getProperty("user.dir"))
         }
+
+        /**
+         * Launcher-local data directory (config, logs, skins, runtimes).
+         * Kept in a "config" folder next to the launcher for portability.
+         */
+        @JvmStatic
+        fun appDataDir(): Path = launcherDir().resolve("config")
     }
 }

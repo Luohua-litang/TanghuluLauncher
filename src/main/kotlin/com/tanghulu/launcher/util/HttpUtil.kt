@@ -14,7 +14,7 @@ import java.nio.file.StandardCopyOption
 import java.time.Duration
 
 /**
- * HTTP 请求与下载工具，基于 JDK 内置 java.net.http。
+ * HTTP request and download utility built on the JDK's java.net.http.
  */
 object HttpUtil {
     const val USER_AGENT = "TanghuluLauncher/1.0.0"
@@ -24,19 +24,24 @@ object HttpUtil {
         .followRedirects(HttpClient.Redirect.NORMAL)
         .build()
 
-    /** 获取 URL 内容，失败自动重试 3 次。 */
+    /** Fetch URL content, retrying up to 3 times on failure. */
     @JvmStatic
     @Throws(IOException::class)
-    fun get(url: String): ByteArray {
+    fun get(url: String): ByteArray = get(url, emptyMap())
+
+    /** Fetch URL content with custom headers, retrying up to 3 times on failure. */
+    @JvmStatic
+    @Throws(IOException::class)
+    fun get(url: String, headers: Map<String, String>): ByteArray {
         var last: IOException? = null
         for (attempt in 0 until 3) {
             try {
-                val req = HttpRequest.newBuilder(URI.create(url))
+                val builder = HttpRequest.newBuilder(URI.create(url))
                     .header("User-Agent", USER_AGENT)
                     .timeout(Duration.ofSeconds(20))
                     .GET()
-                    .build()
-                val resp = CLIENT.send(req, HttpResponse.BodyHandlers.ofByteArray())
+                for ((k, v) in headers) builder.header(k, v)
+                val resp = CLIENT.send(builder.build(), HttpResponse.BodyHandlers.ofByteArray())
                 if (resp.statusCode() == 200) return resp.body()
                 throw IOException("HTTP ${resp.statusCode()} for $url")
             } catch (e: InterruptedException) {
@@ -59,8 +64,13 @@ object HttpUtil {
     @Throws(IOException::class)
     fun getText(url: String): String = String(get(url), StandardCharsets.UTF_8)
 
+    /** Fetch text content with custom headers. */
+    @JvmStatic
+    @Throws(IOException::class)
+    fun getText(url: String, headers: Map<String, String>): String = String(get(url, headers), StandardCharsets.UTF_8)
+
     /**
-     * 单次快速获取文本（不重试），用于版本列表刷新等对速度敏感的轻量请求。
+     * Fetch text in a single quick attempt (no retries), for latency-sensitive requests such as version list refreshes.
      */
     @JvmStatic
     @Throws(IOException::class)
@@ -82,21 +92,21 @@ object HttpUtil {
         }
     }
 
-    /** 下载进度回调。total 为 -1 表示总大小未知。 */
+    /** Download progress callback. total == -1 means the total size is unknown. */
     fun interface ProgressListener {
         fun onProgress(downloaded: Long, total: Long)
     }
 
     /**
-     * 将 URL 下载到目标文件（先写临时文件再原子移动）。
-     * 如果目标文件已存在且 SHA1 匹配，则跳过并返回 false；否则下载并返回 true。
+     * Download a URL to the target file (write to a temp file first, then move atomically).
+     * If the target already exists and its SHA1 matches, skip and return false; otherwise download and return true.
      */
     @JvmStatic
     @Throws(IOException::class)
     fun downloadIfNeeded(url: String, target: Path, expectedSha1: String?): Boolean =
         downloadIfNeeded(url, target, expectedSha1, null)
 
-    /** 流式下载到目标文件（先写临时文件再原子移动），并回调下载进度。 */
+    /** Stream-download to the target file (write to a temp file first, then move atomically) with progress callbacks. */
     @JvmStatic
     @Throws(IOException::class)
     fun downloadIfNeeded(
@@ -105,9 +115,9 @@ object HttpUtil {
         if (Files.isRegularFile(target)) {
             if (!expectedSha1.isNullOrEmpty() && expectedSha1.equals(FileUtil.sha1(target), true)) {
                 listener?.onProgress(1, 1)
-                return false // 已存在且校验通过
+                return false // already exists and verified
             }
-            // 没有 sha1 或校验不通过，删除重下
+            // no sha1 or verification failed, delete and re-download
             Files.delete(target)
         }
         Files.createDirectories(target.parent)
@@ -131,7 +141,7 @@ object HttpUtil {
         var downloaded = 0L
         resp.body().use { input ->
             Files.newOutputStream(tmp).use { out ->
-                val buf = ByteArray(8192)
+                val buf = ByteArray(64 * 1024)
                 var n = input.read(buf)
                 while (n != -1) {
                     out.write(buf, 0, n)
@@ -154,7 +164,7 @@ object HttpUtil {
     }
 
     /**
-     * 按优先顺序尝试多个候选地址下载。前面的地址失败时自动尝试下一个，全部失败才抛出异常。
+     * Try downloading from multiple candidate URLs in order. On failure, fall through to the next URL; throw only if all fail.
      */
     @JvmStatic
     @Throws(IOException::class)
@@ -168,7 +178,7 @@ object HttpUtil {
     ): Boolean {
         if (urls.isEmpty()) throw IOException("No download URL for $target")
         if (urls.size == 1) return downloadIfNeeded(urls[0], target, expectedSha1, listener)
-        // 目标已存在且校验通过则直接跳过
+        // skip if the target already exists and is verified
         if (Files.isRegularFile(target) && !expectedSha1.isNullOrEmpty()
             && expectedSha1.equals(FileUtil.sha1(target), true)
         ) {

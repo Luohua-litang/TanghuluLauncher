@@ -2,7 +2,7 @@ package com.tanghulu.launcher.core.model
 
 import com.tanghulu.launcher.util.Json
 
-/** 单个文件的下载信息。 */
+/** Download info of a single file. */
 class DownloadInfo(
     @JvmField val path: String?,
     @JvmField val url: String?,

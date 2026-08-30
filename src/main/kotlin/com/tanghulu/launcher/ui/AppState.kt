@@ -8,6 +8,7 @@ import androidx.compose.ui.graphics.Color
 import com.tanghulu.launcher.core.DownloadSource
 import com.tanghulu.launcher.core.MinecraftLauncher
 import com.tanghulu.launcher.core.ModDownloader
+import com.tanghulu.launcher.core.ModItem
 import com.tanghulu.launcher.core.ModLoader
 import com.tanghulu.launcher.core.ModLoaderInstaller
 import com.tanghulu.launcher.core.VersionManager
@@ -36,16 +37,16 @@ enum class AppPage(val title: String) {
 
 data class VersionOption(val id: String, val type: String, val local: Boolean, val releaseTime: String?)
 
-/** 单个文件下载进度。 */
+/** Download progress of a single file. */
 data class FileProgress(val name: String, val done: Long, val total: Long) {
-    /** 当前文件完成比例 0..1（total 未知时为 0）。 */
+    /** Completion ratio of the current file, 0..1 (0 when total is unknown). */
     val fraction: Float get() = if (total > 0) (done.toFloat() / total).coerceIn(0f, 1f) else 0f
-    /** 总大小是否已知。 */
+    /** Whether the total size is known. */
     val known: Boolean get() = total > 0
 }
 
 /**
- * 全局应用状态：配置持久化 + 运行时数据。业务动作见 AppStateActions.kt（扩展函数）。
+ * Global app state: persisted config plus runtime data. Business actions live in AppStateActions.kt (extension functions).
  */
 class AppState {
     internal val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
@@ -56,7 +57,7 @@ class AppState {
 
     var page by mutableStateOf(AppPage.Home)
 
-    // 配置
+    // Config
     var username by mutableStateOf("Steve")
     var javaPath by mutableStateOf("")
     var detectedJavas by mutableStateOf<List<JavaInfo>>(emptyList())
@@ -67,10 +68,12 @@ class AppState {
     var downloadAssets by mutableStateOf(true)
     var gameDir by mutableStateOf("")
     var darkMode by mutableStateOf(true)
+    var versionIsolation by mutableStateOf(false)
+    var developerMode by mutableStateOf(false)
     var accentName by mutableStateOf("Green")
     var customAccent by mutableStateOf<Color?>(null)
 
-    // 版本
+    // Versions
     var versions by mutableStateOf<List<VersionOption>>(emptyList())
     var versionsLoading by mutableStateOf(false)
     var versionStatus by mutableStateOf("")
@@ -78,7 +81,7 @@ class AppState {
     var selectedVersionId by mutableStateOf<String?>(null)
     var installedLoaders by mutableStateOf<Map<ModLoader, String>>(emptyMap())
 
-    // 启动 / 进度
+    // Launch / progress
     var launchStatus by mutableStateOf("就绪")
     var launchProgress by mutableStateOf<Int?>(null)
     var fileProgress by mutableStateOf<FileProgress?>(null)
@@ -88,17 +91,17 @@ class AppState {
     // Mod
     var modQuery by mutableStateOf("")
     var modLoader by mutableStateOf(ModLoader.FABRIC)
-    var modResults by mutableStateOf<List<ModDownloader.Mod>>(emptyList())
+    var modResults by mutableStateOf<List<ModItem>>(emptyList())
     var modStatus by mutableStateOf("输入关键词搜索 Modrinth")
     var modLoading by mutableStateOf(false)
     var modProgress by mutableStateOf<Float?>(null)
 
-    // 新闻
+    // News
     var news by mutableStateOf<List<MinecraftNewsService.NewsItem>>(emptyList())
     var newsLoading by mutableStateOf(false)
     var newsError by mutableStateOf(false)
 
-    // 皮肤
+    // Skin
     var skinVersion by mutableStateOf(0)
     var skinStatus by mutableStateOf("")
 
@@ -115,7 +118,7 @@ class AppState {
         loadConfig()
     }
 
-    // ---------- 配置 ----------
+    // ---------- Config ----------
 
     private fun loadConfig() {
         val p = Properties()
@@ -132,6 +135,8 @@ class AppState {
         downloadAssets = p.getProperty("downloadAssets", "true").toBoolean()
         gameDir = p.getProperty("gameDir", "")
         darkMode = p.getProperty("darkMode", "true").toBoolean()
+        versionIsolation = p.getProperty("versionIsolation", "false").toBoolean()
+        developerMode = p.getProperty("developerMode", "false").toBoolean()
         if (javaPath.isBlank()) detectJava()
     }
 
@@ -152,6 +157,8 @@ class AppState {
         p.setProperty("downloadAssets", downloadAssets.toString())
         p.setProperty("gameDir", gameDir.trim())
         p.setProperty("darkMode", darkMode.toString())
+        p.setProperty("versionIsolation", versionIsolation.toString())
+        p.setProperty("developerMode", developerMode.toString())
         scope.launch(Dispatchers.IO) {
             try {
                 configFile.parent?.let { Files.createDirectories(it) }
@@ -179,13 +186,23 @@ class AppState {
         return if (s.isNotEmpty()) Path.of(s) else OperatingSystem.minecraftDir()
     }
 
+    /** Instance data directory: versions/<id> when isolation is enabled, otherwise the root game directory. */
+    fun instanceDir(versionId: String? = selectedVersionId): Path {
+        val root = effectiveGameDir()
+        val vid = versionId
+        return if (versionIsolation && !vid.isNullOrEmpty()) root.resolve("versions").resolve(vid) else root
+    }
+
+    /** Mod directory of the currently selected version. */
+    fun modsDir(): Path = instanceDir(selectedVersionId).resolve("mods")
+
     fun parseMemory(s: String): Int = try {
         val v = s.trim().uppercase()
         val num = v.replace("GB", "").replace("MB", "").trim().toDouble()
         if (v.contains("MB")) num.toInt() else (num * 1024).toInt()
     } catch (_: Exception) { 2048 }
 
-    // ---------- 日志 / 进度 ----------
+    // ---------- Log / progress ----------
 
     internal fun onLog(line: String) { scope.launch { appendLog(line) } }
 
@@ -209,19 +226,20 @@ class AppState {
 
     private fun appendLog(line: String) {
         logs.add(line)
-        while (logs.size > 5000) logs.removeAt(0)
+        // Trim excess old logs in bulk to avoid repeated snapshot structural changes from removeAt(0)
+        val over = logs.size - 5000
+        if (over > 0) logs.subList(0, over).clear()
     }
 
-    internal fun detectInstalledLoaders(): Map<ModLoader, String> {
+    internal fun detectInstalledLoaders(gameDir: Path, selected: String?): Map<ModLoader, String> {
         val result = LinkedHashMap<ModLoader, String>()
-        val gv = selectedVersionId
-        val hasGv = !gv.isNullOrEmpty()
-        for (id in versionManager.getLocalVersions(effectiveGameDir())) {
+        val hasGv = !selected.isNullOrEmpty()
+        for (id in versionManager.getLocalVersions(gameDir)) {
             when {
-                id.startsWith("fabric-loader-") && (!hasGv || id.endsWith("-$gv")) -> result.putIfAbsent(ModLoader.FABRIC, id)
-                id.startsWith("quilt-loader-") && (!hasGv || id.endsWith("-$gv")) -> result.putIfAbsent(ModLoader.QUILT, id)
-                id.startsWith("neoforge-") || (hasGv && id.startsWith("$gv-neoforge-")) -> result.putIfAbsent(ModLoader.NEOFORGE, id)
-                hasGv && id.startsWith("$gv-forge-") -> result.putIfAbsent(ModLoader.FORGE, id)
+                id.startsWith("fabric-loader-") && (!hasGv || id.endsWith("-$selected")) -> result.putIfAbsent(ModLoader.FABRIC, id)
+                id.startsWith("quilt-loader-") && (!hasGv || id.endsWith("-$selected")) -> result.putIfAbsent(ModLoader.QUILT, id)
+                id.startsWith("neoforge-") || (hasGv && id.startsWith("$selected-neoforge-")) -> result.putIfAbsent(ModLoader.NEOFORGE, id)
+                hasGv && id.startsWith("$selected-forge-") -> result.putIfAbsent(ModLoader.FORGE, id)
             }
         }
         return result
@@ -256,7 +274,7 @@ class AppState {
         }
     }
 
-    /** 扫描本机所有 Java 运行时并填充 [detectedJavas]；[force] 为 true 时强制重新扫描。 */
+    /** Scan all local Java runtimes and fill [detectedJavas]; when [force] is true, rescan even if already scanned. */
     fun scanJavas(force: Boolean = false) {
         if (javaScanning || (detectedJavas.isNotEmpty() && !force)) return
         javaScanning = true

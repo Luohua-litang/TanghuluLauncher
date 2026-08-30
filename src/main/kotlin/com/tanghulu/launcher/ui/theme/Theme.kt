@@ -10,10 +10,10 @@ import androidx.compose.ui.text.ExperimentalTextApi
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 
-/** 可选的强调色主题。 */
+/** An optional accent color theme. */
 data class AccentOption(val name: String, val color: Color)
 
-/** 预设强调色（草绿为 Minecraft 风格默认）。 */
+/** Preset accent colors (grass green is the Minecraft-style default). */
 val AccentOptions = listOf(
     AccentOption("Indigo", Color(0xFF3F51B5)),
     AccentOption("Blue", Color(0xFF2196F3)),
@@ -23,16 +23,16 @@ val AccentOptions = listOf(
     AccentOption("Teal", Color(0xFF009688)),
 )
 
-/** Minecraft 草绿 / 泥土棕。 */
+/** Minecraft grass green / dirt brown. */
 val GrassGreen = Color(0xFF4CAF50)
 val DirtBrown = Color(0xFF8D6E63)
 val DefaultAccent = AccentOptions[2].color
 
-/** 系统自带的微软雅黑字体族。 */
+/** The built-in Microsoft YaHei font family. */
 @OptIn(ExperimentalTextApi::class)
 val MicrosoftYaHei = FontFamily("Microsoft YaHei")
 
-/** 全量文字排版：默认使用微软雅黑。 */
+/** Full typography: uses Microsoft YaHei by default. */
 val TanghuluTypography = Typography().run {
     copy(
         displayLarge = displayLarge.withFont(),
@@ -56,7 +56,7 @@ val TanghuluTypography = Typography().run {
 private fun TextStyle.withFont() = merge(TextStyle(fontFamily = MicrosoftYaHei))
 
 /**
- * 构建 Material3 配色方案：主色跟随用户选择的强调色。
+ * Build the Material3 color scheme: the primary color follows the user-selected accent.
  */
 private fun buildScheme(dark: Boolean, accent: Color) =
     if (dark) darkColorScheme(
@@ -107,7 +107,7 @@ private fun buildScheme(dark: Boolean, accent: Color) =
         onError = Color.White,
     )
 
-/** 在两种颜色间线性混合，[amount] 为 other 的权重。 */
+/** Linearly blend two colors; [amount] is the weight of other. */
 private fun blend(a: Color, b: Color, amount: Float): Color {
     val t = amount.coerceIn(0f, 1f)
     return Color(
@@ -118,7 +118,7 @@ private fun blend(a: Color, b: Color, amount: Float): Color {
     )
 }
 
-/** 把颜色调暗（factor 越小越暗）。 */
+/** Darken a color (a smaller factor means darker). */
 private fun darken(c: Color, factor: Float): Color = blend(c, Color.Black, 1f - factor)
 
 @Composable

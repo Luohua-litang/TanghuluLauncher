@@ -21,9 +21,9 @@ import kotlin.math.max
 import kotlin.math.min
 
 /**
- * Mod 加载器安装器（借鉴 HMCL 的 FabricInstallTask / NeoForgeInstallTask）。
- * Fabric / Quilt 走官方 meta API 生成 inheritsFrom 版本 JSON；
- * NeoForge / Forge 下载官方 installer 并运行 --installClient。
+ * Mod loader installer (modeled after HMCL's FabricInstallTask / NeoForgeInstallTask).
+ * Fabric / Quilt use the official meta API to generate an inheritsFrom version JSON;
+ * NeoForge / Forge download the official installer and run --installClient.
  */
 class ModLoaderInstaller {
 
@@ -33,7 +33,7 @@ class ModLoaderInstaller {
 
     private val downloader = DownloadManager(8)
 
-    /** 列出某游戏版本可用的加载器版本（降序）。 */
+    /** List the available loader versions for a game version (descending). */
     @Throws(IOException::class)
     fun listLoaderVersions(loader: ModLoader, gameVersion: String): List<String> {
         if (!loader.supported) {
@@ -61,7 +61,7 @@ class ModLoaderInstaller {
         return extractMavenVersions(xml, gameVersion)
     }
 
-    /** 安装加载器，完成后生成一个可启动的新版本。 */
+    /** Install the loader, producing a new launchable version when complete. */
     @Throws(Exception::class)
     fun install(
         loader: ModLoader, gameDir: Path, gameVersion: String, loaderVersion: String,
@@ -156,10 +156,10 @@ class ModLoaderInstaller {
         progress.update(5, "下载 installer")
         HttpUtil.downloadIfNeeded(Collections.singletonList(installerUrl), installerJar, null)
 
-        // 新版 installer 会校验官方启动器的 launcher_profiles.json，缺失会直接失败，这里先补一个空配置
+        // Newer installers validate the official launcher's launcher_profiles.json; a missing file fails immediately, so pre-create an empty config
         ensureLauncherProfiles(gameDir)
 
-        // 旧版 Forge（MC 1.7.10 及更早）的 SimpleInstaller 不支持 --installClient，改用反射调用客户端安装
+        // Legacy Forge (MC 1.7.10 and earlier) SimpleInstaller does not support --installClient, so use reflection to invoke client installation
         if (isLegacyForge(loaderVersion)) {
             installLegacyForge(installerJar, gameDir, loader, loaderVersion, log, progress)
         } else {
@@ -167,7 +167,7 @@ class ModLoaderInstaller {
         }
     }
 
-    /** 判断是否为旧版 Forge（对应 Minecraft 1.7.10 及更早，installer 为 SimpleInstaller）。 */
+    /** Whether this is legacy Forge (Minecraft 1.7.10 and earlier, whose installer is SimpleInstaller). */
     private fun isLegacyForge(loaderVersion: String): Boolean {
         val mc = loaderVersion.substringBefore('-')
         val parts = mc.split('.')
@@ -176,21 +176,21 @@ class ModLoaderInstaller {
         return major < 1 || (major == 1 && minor < 8)
     }
 
-    /** 预创建官方启动器配置文件，避免 Forge/OptiFine installer 因缺少该文件而失败。 */
+    /** Pre-create the official launcher profile file so Forge/OptiFine installers do not fail due to a missing file. */
     private fun ensureLauncherProfiles(gameDir: Path) {
         val f = gameDir.resolve("launcher_profiles.json")
         if (!Files.isRegularFile(f)) {
             try {
                 Files.writeString(f, "{\"profiles\":{}}", StandardCharsets.UTF_8)
             } catch (e: IOException) {
-                // 创建失败不阻断安装，installer 会给出具体错误
+                // Creation failure does not block installation; the installer will report a specific error
             }
         }
     }
 
     /**
-     * 旧版 Forge 的 SimpleInstaller 没有 --installClient 参数，
-     * 通过反射调用 InstallerAction.CLIENT.run 完成客户端安装（与 HMCL 一致）。
+     * Legacy Forge's SimpleInstaller has no --installClient argument;
+     * client installation is done by reflectively calling InstallerAction.CLIENT.run (consistent with HMCL).
      */
     @Throws(Exception::class)
     private fun installLegacyForge(
@@ -209,7 +209,7 @@ class ModLoaderInstaller {
                 .first { (it as Enum<*>).name == "CLIENT" }
             val predicateClass = cl.loadClass("com.google.common.base.Predicate")
             val runMethod = actionClass.getMethod("run", File::class.java, predicateClass)
-            // 使用 installer 自带的 Guava Predicates.alwaysTrue() 作为下载过滤条件（全部下载）
+            // Use the installer's bundled Guava Predicates.alwaysTrue() as the download filter (download everything)
             val predicatesClass = cl.loadClass("com.google.common.base.Predicates")
             val alwaysTrue = predicatesClass.getMethod("alwaysTrue").invoke(null)
             try {
@@ -224,7 +224,7 @@ class ModLoaderInstaller {
         log.accept(loader.displayName + " " + loaderVersion + " 安装完成")
     }
 
-    /** 新版 Forge/NeoForge 通过 --installClient 参数无头安装。 */
+    /** Modern Forge/NeoForge perform a headless install via the --installClient argument. */
     @Throws(IOException::class)
     private fun installModernForge(
         installerJar: Path, javaPath: Path, gameDir: Path, loader: ModLoader, loaderVersion: String,
@@ -259,7 +259,7 @@ class ModLoaderInstaller {
         log.accept(loader.displayName + " " + loaderVersion + " 安装完成")
     }
 
-    /** 列出某游戏版本可用的 OptiFine 版本（type_patch 形式，如 HD_U_I6）。 */
+    /** List available OptiFine versions for a game version (in type_patch form, e.g. HD_U_I6). */
     @Throws(IOException::class)
     private fun listOptiFineVersions(gameVersion: String): List<String> {
         val text = HttpUtil.getText(OPTIFINE_BASE + "versionList")
@@ -275,7 +275,7 @@ class ModLoaderInstaller {
         return result
     }
 
-    /** 安装 OptiFine：下载 installer 后反射调用官方 optifine.Installer.doInstall 无 GUI 安装。 */
+    /** Install OptiFine: download the installer and reflectively call the official optifine.Installer.doInstall for a GUI-less install. */
     @Throws(Exception::class)
     private fun installOptiFine(
         gameDir: Path, gameVersion: String, loaderVersion: String,
@@ -299,7 +299,7 @@ class ModLoaderInstaller {
         if (!Files.isRegularFile(clientJar)) {
             throw IOException("原版 $gameVersion 尚未下载，请先下载原版")
         }
-        // 预创建 launcher_profiles.json，避免 OptiFine installer 弹出 GUI 文件选择器
+        // Pre-create launcher_profiles.json to avoid the OptiFine installer popping up a GUI file chooser
         ensureLauncherProfiles(gameDir)
 
         log.accept("安装 OptiFine $loaderVersion（运行官方 installer）...")
@@ -327,7 +327,7 @@ class ModLoaderInstaller {
         log.accept("OptiFine $loaderVersion 安装完成")
     }
 
-    /** 列出某游戏版本适配 Fabric 的 Fabric API 版本号。 */
+    /** List Fabric API version numbers compatible with a game version and Fabric. */
     @Throws(IOException::class)
     private fun listFabricApiVersions(gameVersion: String): List<String> {
         val result = ArrayList<String>()
@@ -339,7 +339,7 @@ class ModLoaderInstaller {
         return result
     }
 
-    /** 安装 Fabric API：从 Modrinth 下载对应 jar 到游戏目录的 mods 文件夹。 */
+    /** Install Fabric API: download the matching jar from Modrinth into the game directory's mods folder. */
     @Throws(IOException::class)
     private fun installFabricApi(
         gameDir: Path, gameVersion: String, loaderVersion: String,
@@ -372,7 +372,7 @@ class ModLoaderInstaller {
         log.accept("Fabric API $loaderVersion 安装完成")
     }
 
-    /** 列出某游戏版本适配 Quilt 的 QSL 版本号。 */
+    /** List QSL version numbers compatible with a game version and Quilt. */
     @Throws(IOException::class)
     private fun listQslVersions(gameVersion: String): List<String> {
         val result = ArrayList<String>()
@@ -384,7 +384,7 @@ class ModLoaderInstaller {
         return result
     }
 
-    /** 安装 QSL + QFAPI：从 Modrinth 下载两个 jar 到游戏目录的 mods 文件夹。 */
+    /** Install QSL + QFAPI: download two jars from Modrinth into the game directory's mods folder. */
     @Throws(IOException::class)
     private fun installQslQfapi(
         gameDir: Path, gameVersion: String, loaderVersion: String,
@@ -399,7 +399,7 @@ class ModLoaderInstaller {
         log.accept("QSL/QFAPI 安装完成（QSL $loaderVersion）")
     }
 
-    /** 通用：从 Modrinth 下载指定 mod 项目的一个 jar 到 mods 目录。 */
+    /** Generic: download one jar of a given mod project from Modrinth into the mods directory. */
     @Throws(IOException::class)
     private fun downloadModJar(
         slug: String, displayName: String, gameVersion: String, loader: String?,
@@ -436,7 +436,7 @@ class ModLoaderInstaller {
     }
 
     companion object {
-        /** OptiFine 版本列表与下载（BMCLAPI 镜像，与 HMCL 一致）。 */
+        /** OptiFine version list and downloads (BMCLAPI mirror, consistent with HMCL). */
         private const val OPTIFINE_BASE = "https://bmclapi2.bangbang93.com/optifine/"
         private const val FABRIC_API_SLUG = "fabric-api"
         private const val QSL_SLUG = "qsl"
@@ -517,7 +517,7 @@ class ModLoaderInstaller {
             return result
         }
 
-        /** 版本号排序键：按数字段拆分补零，保证 0.15.11 > 0.15.9。 */
+        /** Version number sort key: split by numeric segments and zero-pad, ensuring 0.15.11 > 0.15.9. */
         private fun versionKey(v: String): String {
             val sb = StringBuilder()
             for (part in v.split(Regex("[^0-9]+"))) {

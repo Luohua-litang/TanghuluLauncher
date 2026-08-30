@@ -1,14 +1,14 @@
 package com.tanghulu.launcher.util
 
 /**
- * 轻量 JSON 解析器，零外部依赖。
+ * Lightweight JSON parser with zero external dependencies.
  *
- * [parse] 返回的对象结构：
- * - JSON 对象 -> `Map<String, Any?>`
- * - JSON 数组 -> `List<Any?>`
- * - JSON 字符串 -> `String`
- * - JSON 数字 -> `Double`
- * - JSON 布尔 -> `Boolean`
+ * Objects returned by [parse]:
+ * - JSON object -> `Map<String, Any?>`
+ * - JSON array -> `List<Any?>`
+ * - JSON string -> `String`
+ * - JSON number -> `Double`
+ * - JSON boolean -> `Boolean`
  * - JSON null -> `null`
  */
 object Json {
@@ -21,7 +21,7 @@ object Json {
         return Parser(text).parseDocument()
     }
 
-    // ============ 便捷访问 ============
+    // ============ Convenience accessors ============
 
     @JvmStatic
     @Suppress("UNCHECKED_CAST")
@@ -71,9 +71,9 @@ object Json {
         return (v as? Number)?.toLong() ?: def
     }
 
-    // ============ 序列化 ============
+    // ============ Serialization ============
 
-    /** 把 Map/List/String/Number/Boolean/null 序列化为 JSON 文本（紧凑格式）。 */
+    /** Serialize Map/List/String/Number/Boolean/null into compact JSON text. */
     @JvmStatic
     fun stringify(v: Any?): String {
         val sb = StringBuilder()
@@ -120,11 +120,11 @@ object Json {
         if (n is Double || n is Float) {
             val d = n.toDouble()
             if (!d.isFinite()) {
-                // NaN / Infinity 不是合法 JSON，输出 null 以保证结果可被解析
+                // NaN / Infinity are not valid JSON, output null to keep the result parseable
                 sb.append("null")
                 return
             }
-            // 整数值输出为整数形式（1.0 -> 1），避免污染 JSON 语义
+            // whole numbers are written as integers (1.0 -> 1) to avoid polluting JSON semantics
             if (d == Math.floor(d) && Math.abs(d) < 1e15) {
                 sb.append(d.toLong())
                 return
@@ -157,7 +157,7 @@ object Json {
         sb.append(']')
     }
 
-    // ============ 解析器 ============
+    // ============ Parser ============
 
     private class Parser(private val s: String) {
         private var i = 0

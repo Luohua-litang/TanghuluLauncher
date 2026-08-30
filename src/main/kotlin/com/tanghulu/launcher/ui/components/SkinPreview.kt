@@ -22,8 +22,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 /**
- * 皮肤像素采样器。皮肤纹理为 64x64（新版）或 64x32（旧版）。
- * 通过 UV 坐标（0..64）映射到实际像素。
+ * Skin pixel sampler. Skin textures are 64x64 (new) or 64x32 (legacy).
+ * Maps UV coordinates (0..64) to actual pixels.
  */
 private class SkinSampler(val pm: PixelMap) {
     val w = pm.width
@@ -53,7 +53,7 @@ private fun DrawScope.drawRegion(gx: Int, gy: Int, gw: Int, gh: Int, cell: Float
     }
 }
 
-/** 圆形皮肤头像（头部正面 8x8 放大）。 */
+/** Circular skin avatar (the 8x8 front of the head, enlarged). */
 @Composable
 fun SkinAvatar(bitmap: ImageBitmap, modifier: Modifier = Modifier, size: Dp = 48.dp) {
     val sampler = remember(bitmap) { SkinSampler(bitmap.toPixelMap()) }
@@ -67,17 +67,17 @@ fun SkinAvatar(bitmap: ImageBitmap, modifier: Modifier = Modifier, size: Dp = 48
     }
 }
 
-/** 全身皮肤立绘（方块人，宽高比 1:2）。 */
+/** Full-body skin figure (blocky character, 1:2 aspect ratio). */
 @Composable
 fun SkinFigure(bitmap: ImageBitmap, modifier: Modifier = Modifier, height: Dp = 180.dp) {
     val sampler = remember(bitmap) { SkinSampler(bitmap.toPixelMap()) }
     Canvas(modifier.height(height).aspectRatio(0.5f)) {
         val cell = size.width / 16f
-        drawRegion(4, 0, 8, 8, cell) { x, y -> sampler.head(x, y) }          // 头
-        drawRegion(4, 8, 8, 12, cell) { x, y -> sampler.body(x, y) }         // 身体
-        drawRegion(0, 8, 4, 12, cell) { x, y -> sampler.leftArm(x, y) }      // 左臂
-        drawRegion(12, 8, 4, 12, cell) { x, y -> sampler.rightArm(x, y) }    // 右臂
-        drawRegion(4, 20, 4, 12, cell) { x, y -> sampler.leftLeg(x, y) }     // 左腿
-        drawRegion(8, 20, 4, 12, cell) { x, y -> sampler.rightLeg(x, y) }    // 右腿
+        drawRegion(4, 0, 8, 8, cell) { x, y -> sampler.head(x, y) }          // head
+        drawRegion(4, 8, 8, 12, cell) { x, y -> sampler.body(x, y) }         // body
+        drawRegion(0, 8, 4, 12, cell) { x, y -> sampler.leftArm(x, y) }      // left arm
+        drawRegion(12, 8, 4, 12, cell) { x, y -> sampler.rightArm(x, y) }    // right arm
+        drawRegion(4, 20, 4, 12, cell) { x, y -> sampler.leftLeg(x, y) }     // left leg
+        drawRegion(8, 20, 4, 12, cell) { x, y -> sampler.rightLeg(x, y) }    // right leg
     }
 }

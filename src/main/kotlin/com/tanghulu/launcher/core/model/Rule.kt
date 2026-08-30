@@ -4,7 +4,7 @@ import com.tanghulu.launcher.util.Json
 import java.util.regex.Pattern
 
 /**
- * 版本 JSON 中的规则（rules），用于按操作系统 / 特性过滤库文件与参数。
+ * A rule in the version JSON, used to filter libraries and arguments by OS / features.
  */
 class Rule(
     @JvmField val action: String,

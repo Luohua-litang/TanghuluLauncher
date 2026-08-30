@@ -1,16 +1,16 @@
 package com.tanghulu.launcher.core
 
 /**
- * Mod 加载器类型。
- * 前七个（Fabric/Quilt/NeoForge/Forge/OptiFine/Fabric API/QSL-QFAPI）均可直接安装。
+ * Mod loader type.
+ * The first seven (Fabric/Quilt/NeoForge/Forge/OptiFine/Fabric API/QSL-QFAPI) can be installed directly.
  */
 enum class ModLoader(
     @JvmField val displayName: String,
-    /** meta API 基础地址（Fabric/Quilt 使用；null 表示走 maven + installer 方式）。 */
+    /** Meta API base URL (used by Fabric/Quilt; null means the maven + installer path is used). */
     @JvmField val metaBase: String?,
-    /** maven 仓库基础地址。 */
+    /** Maven repository base URL. */
     @JvmField val mavenBase: String?,
-    /** 当前启动器是否已实现安装流程。 */
+    /** Whether this launcher has implemented the install flow. */
     @JvmField val supported: Boolean
 ) {
     FABRIC("Fabric", "https://meta.fabricmc.net/v2/versions/loader", "https://maven.fabricmc.net/", true),
@@ -21,10 +21,10 @@ enum class ModLoader(
     FABRIC_API("Fabric API", null, null, true),
     QSL_QFAPI("QSL/QFAPI", null, null, true);
 
-    /** 是否为 meta 型加载器（直接生成版本 JSON，无需运行官方 installer）。 */
+    /** Whether this is a meta-based loader (generates a version JSON directly, without running the official installer). */
     fun isMeta(): Boolean = metaBase != null
 
-    /** 安装是否需要独立 Java 运行时（用于运行官方 installer 子进程）。 */
+    /** Whether installation requires a standalone Java runtime (used to run the official installer subprocess). */
     fun requiresJava(): Boolean = this == FORGE || this == NEOFORGE
 
     override fun toString(): String = displayName

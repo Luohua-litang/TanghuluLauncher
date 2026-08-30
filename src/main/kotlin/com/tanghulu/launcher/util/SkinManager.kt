@@ -7,15 +7,15 @@ import java.nio.file.StandardCopyOption
 import java.util.regex.Pattern
 
 /**
- * 离线皮肤管理：负责本地皮肤文件的存储与自定义皮肤上传。
+ * Offline skin management: stores local skin files and handles custom skin uploads.
  */
 object SkinManager {
 
-    /** 皮肤存储根目录：appDataDir/skins */
+    /** Skin storage root directory: appDataDir/skins */
     @JvmStatic
     fun skinsDir(): Path = OperatingSystem.appDataDir().resolve("skins")
 
-    /** 某玩家对应的本地皮肤文件路径（不存在则返回 null）。 */
+    /** Path to a player's local skin file (null if missing). */
     @JvmStatic
     fun skinFile(playerName: String?): Path? {
         if (playerName.isNullOrBlank()) return null
@@ -23,11 +23,11 @@ object SkinManager {
         return if (Files.isRegularFile(f)) f else null
     }
 
-    /** 是否存在本地皮肤。 */
+    /** Whether a local skin exists. */
     @JvmStatic
     fun hasSkin(playerName: String?): Boolean = skinFile(playerName) != null
 
-    /** 上传本地 PNG 作为指定玩家的皮肤，返回保存后的文件路径。 */
+    /** Upload a local PNG as the given player's skin and return the saved file path. */
     @JvmStatic
     @Throws(IOException::class)
     fun uploadSkin(playerName: String?, sourcePng: Path?): Path {
@@ -39,7 +39,7 @@ object SkinManager {
         return target
     }
 
-    /** 删除指定玩家的本地皮肤。 */
+    /** Delete the given player's local skin. */
     @JvmStatic
     fun removeSkin(playerName: String?): Boolean {
         val f = skinFile(playerName)
@@ -55,6 +55,6 @@ object SkinManager {
 
     private val SANITIZE_PATTERN = Pattern.compile("[^a-zA-Z0-9_]")
 
-    /** 非法字符替换，防止路径穿越。 */
+    /** Replace illegal characters to prevent path traversal. */
     private fun sanitize(name: String): String = SANITIZE_PATTERN.matcher(name).replaceAll("_")
 }

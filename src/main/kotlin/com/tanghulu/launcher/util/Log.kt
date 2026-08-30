@@ -14,13 +14,13 @@ import java.util.concurrent.LinkedBlockingQueue
 import java.util.function.Consumer
 
 /**
- * 轻量日志工具：统一格式 `[HH:mm:ss] [级别] 消息`，通过后台线程异步写入文件，
- * 同时可把每一行转发到 UI（[setUiSink]）。
+ * Lightweight logger: unified `[HH:mm:ss] [level] message` format, written to a file asynchronously on a background thread,
+ * while also forwarding each line to the UI ([setUiSink]).
  */
 object Log {
     private val TIME = DateTimeFormatter.ofPattern("HH:mm:ss")
     private val FILE = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss")
-    private const val RETENTION_MILLIS = 7L * 24 * 3600 * 1000 // 日志保留 7 天
+    private const val RETENTION_MILLIS = 7L * 24 * 3600 * 1000 // keep logs for 7 days
 
     private val QUEUE: BlockingQueue<String> = LinkedBlockingQueue()
 
@@ -43,7 +43,7 @@ object Log {
                 true
             )
         } catch (e: IOException) {
-            // 写文件失败时退化为仅转发到 UI
+            // fall back to UI-only forwarding if writing to file fails
             writer = null
         }
 
@@ -67,7 +67,7 @@ object Log {
         }, "log-shutdown"))
     }
 
-    /** 注册 UI 输出回调，每一行日志都会转发给它（注意切换到 JavaFX 线程）。 */
+    /** Register a UI output callback; every log line is forwarded to it (remember to switch to the JavaFX thread). */
     @JvmStatic
     fun setUiSink(sink: Consumer<String>) {
         uiSink = sink
@@ -118,12 +118,12 @@ object Log {
                         try {
                             Files.deleteIfExists(p)
                         } catch (ignored: IOException) {
-                            // 单个文件删除失败不影响整体
+                            // a single failed deletion must not abort the rest
                         }
                     }
             }
         } catch (ignored: IOException) {
-            // 清理失败可忽略
+            // cleanup failures are ignorable
         }
     }
 }

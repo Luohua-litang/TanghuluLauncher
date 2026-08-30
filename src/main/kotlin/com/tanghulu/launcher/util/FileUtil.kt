@@ -9,19 +9,21 @@ import java.security.NoSuchAlgorithmException
 
 object FileUtil {
 
-    /** 计算文件的 SHA1，失败返回 null。 */
+    /** Compute the file's SHA1, or null on failure. */
     @JvmStatic
     fun sha1(file: Path): String? = digest(file, "SHA-1", 40)
 
-    /** 计算文件的 SHA256，失败返回 null。 */
+    /** Compute the file's SHA256, or null on failure. */
     @JvmStatic
     fun sha256(file: Path): String? = digest(file, "SHA-256", 64)
+
+    private val HEX = "0123456789abcdef".toCharArray()
 
     private fun digest(file: Path, algorithm: String, hexLen: Int): String? {
         return try {
             Files.newInputStream(file).use { input ->
                 val md = MessageDigest.getInstance(algorithm)
-                val buf = ByteArray(8192)
+                val buf = ByteArray(64 * 1024)
                 var n = input.read(buf)
                 while (n > 0) {
                     md.update(buf, 0, n)
@@ -29,7 +31,9 @@ object FileUtil {
                 }
                 val sb = StringBuilder(hexLen)
                 for (b in md.digest()) {
-                    sb.append(String.format("%02x", b))
+                    val v = b.toInt() and 0xFF
+                    sb.append(HEX[v ushr 4])
+                    sb.append(HEX[v and 0x0F])
                 }
                 sb.toString()
             }
@@ -51,7 +55,7 @@ object FileUtil {
         Files.writeString(file, text, StandardCharsets.UTF_8)
     }
 
-    /** 删除目录及其内容。 */
+    /** Delete a directory and its contents. */
     @JvmStatic
     @Throws(IOException::class)
     fun deleteRecursively(dir: Path) {
@@ -61,7 +65,7 @@ object FileUtil {
                 try {
                     Files.deleteIfExists(p)
                 } catch (ignored: IOException) {
-                    // 忽略单个文件删除失败
+                    // ignore individual deletion failures
                 }
             }
         }

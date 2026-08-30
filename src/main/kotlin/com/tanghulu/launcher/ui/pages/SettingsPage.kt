@@ -21,6 +21,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowDropDown
 import androidx.compose.material.icons.rounded.FolderOpen
+import androidx.compose.material.icons.rounded.List
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
@@ -63,6 +64,7 @@ import kotlinx.coroutines.withContext
 
 @Composable
 fun SettingsPage(state: AppState) {
+    var showLogViewer by remember { mutableStateOf(false) }
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -139,14 +141,49 @@ fun SettingsPage(state: AppState) {
                 supportingText = { Text("留空使用默认目录") },
                 singleLine = true, modifier = Modifier.fillMaxWidth(),
             )
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(12.dp))
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("版本隔离", fontWeight = FontWeight.Medium)
+                    Text("每个版本使用独立的 mods / 配置 / 存档目录（versions/<版本>）", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+                }
+                Switch(checked = state.versionIsolation, onCheckedChange = { state.versionIsolation = it; state.scheduleSave() })
+            }
+            Spacer(Modifier.height(12.dp))
             Button(onClick = { openFolder(state.effectiveGameDir().toString()) }) {
                 Icon(Icons.Rounded.FolderOpen, null, Modifier.size(18.dp))
                 Spacer(Modifier.width(6.dp))
                 Text("打开目录")
             }
         }
+
+        SettingSection("开发者") {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("开发者模式", fontWeight = FontWeight.Medium)
+                    Text("显示日志查看等高级功能", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+                }
+                Switch(checked = state.developerMode, onCheckedChange = { state.developerMode = it; state.scheduleSave() })
+            }
+            if (state.developerMode) {
+                Spacer(Modifier.height(14.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Button(onClick = { showLogViewer = true }) {
+                        Icon(Icons.Rounded.List, null, Modifier.size(18.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text("查看日志")
+                    }
+                    OutlinedButton(onClick = { openFolder(OperatingSystem.appDataDir().resolve("logs").toString()) }) {
+                        Icon(Icons.Rounded.FolderOpen, null, Modifier.size(18.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text("日志目录")
+                    }
+                }
+            }
+        }
     }
+
+    if (showLogViewer) LogViewerDialog(state) { showLogViewer = false }
 }
 
 @Composable

@@ -21,7 +21,7 @@ import java.util.regex.Matcher
 import java.util.regex.Pattern
 
 /**
- * Minecraft 启动核心：解析版本、下载依赖、构建参数并启动游戏进程。
+ * Minecraft launch core: resolves versions, downloads dependencies, builds arguments and starts the game process.
  */
 class MinecraftLauncher {
 
@@ -52,6 +52,8 @@ class MinecraftLauncher {
         @JvmField var downloadAssets: Boolean = true
         @JvmField var extraJvmArgs: String = ""
         @JvmField var extraGameArgs: String = ""
+        /** Version isolation: when true, the instance data directory points to versions/<id>. */
+        @JvmField var isolated: Boolean = false
     }
 
     class PreparedVersion(
@@ -104,7 +106,7 @@ class MinecraftLauncher {
         log.log("版本: " + versionId + " | 下载源: " + source.getName())
         progress.progress(2, "解析版本信息...")
 
-        // 1. 版本 JSON（合并 inheritsFrom 继承链）
+        // 1. Version JSON (merge the inheritsFrom chain)
         val resolved = versionManager.resolve(gameDir, versionId, source)
         var info = VersionInfo.parse(resolved.json)
         if (info.id == null) {
@@ -120,7 +122,7 @@ class MinecraftLauncher {
         }
         progress.progress(5, "版本: " + versionId)
 
-        // 2. 版本 jar
+        // 2. Version jar
         val versionJar = versionManager.localVersionJar(gameDir, resolved.jarId)
         val clientSha1 = info.clientDownload?.sha1
         val jarOk = Files.isRegularFile(versionJar) &&
@@ -145,7 +147,7 @@ class MinecraftLauncher {
             }
         }
 
-        // 3. 库文件与 natives
+        // 3. Libraries and natives
         val nativesKey = "natives-" + OperatingSystem.CURRENT_OS.mojangName()
         val customRes = o.width > 0 || o.height > 0
         val allowedLibs = ArrayList<Library>()
@@ -200,7 +202,7 @@ class MinecraftLauncher {
             }
         }
 
-        // 4. 解压 natives
+        // 4. Extract natives
         val nativesDir = gameDir.resolve("versions").resolve(versionId).resolve("natives")
         if (o.cleanNatives) NativeExtractor.clean(nativesDir)
         Files.createDirectories(nativesDir)
@@ -209,7 +211,7 @@ class MinecraftLauncher {
         }
         progress.progress(45, "natives 就绪")
 
-        // 5. assets
+        // 5. Assets
         if (o.downloadAssets) {
             log.log("检查资源文件...")
             val assetIndex = assetManager.loadOrDownloadIndex(
@@ -252,8 +254,12 @@ class MinecraftLauncher {
 
         val customRes = o.width > 0 || o.height > 0
 
-        // 6. 构建参数
-        val tokens = buildTokens(o, info, versionJar, nativesDir, allowedLibs)
+        // Version isolation: instance data directory points to versions/<id> while libraries/assets stay shared.
+        val instanceDir = if (o.isolated) gameDir.resolve("versions").resolve(versionId) else gameDir
+        Files.createDirectories(instanceDir)
+
+        // 6. Build arguments
+        val tokens = buildTokens(o, info, versionJar, nativesDir, allowedLibs, instanceDir)
         val jvmArgs = ArrayList<String>()
         val gameArgs = ArrayList<String>()
 
@@ -281,7 +287,7 @@ class MinecraftLauncher {
         jvmArgs.add("-Dminecraft.launcher.brand=" + LAUNCHER_NAME)
         jvmArgs.add("-Dminecraft.launcher.version=" + LAUNCHER_VERSION)
 
-        // 7. 组装启动命令
+        // 7. Assemble the launch command
         val cmd = ArrayList<String>()
         cmd.add(javaPath.toAbsolutePath().toString())
         var hasAuthlib = false
@@ -318,7 +324,7 @@ class MinecraftLauncher {
         log.log("启动命令: " + cmd.joinToString(" "))
 
         val pb = ProcessBuilder(cmd)
-        pb.directory(gameDir.toFile())
+        pb.directory(instanceDir.toFile())
         pb.redirectErrorStream(true)
         val process = pb.start()
 
@@ -421,7 +427,8 @@ class MinecraftLauncher {
     }
 
     private fun buildTokens(o: LaunchOptions, info: VersionInfo, versionJar: Path,
-                            nativesDir: Path, allowedLibs: List<Library>): Map<String, String> {
+                            nativesDir: Path, allowedLibs: List<Library>,
+                            instanceDir: Path): Map<String, String> {
         val uuid = UUID.nameUUIDFromBytes(
             ("OfflinePlayer:" + o.username).toByteArray(StandardCharsets.UTF_8))
         val uuidStr = uuid.toString().replace("-", "")
@@ -451,7 +458,7 @@ class MinecraftLauncher {
         t["clientid"] = UUID.randomUUID().toString()
         t["version_name"] = o.versionId ?: ""
         t["version_type"] = info.type ?: "release"
-        t["game_directory"] = gameDirStr
+        t["game_directory"] = instanceDir.toAbsolutePath().toString()
         t["game_assets"] = gameDirStr + "/assets/virtual/legacy"
         t["assets_root"] = assetsRoot
         t["assets_index_name"] = info.assets ?: o.versionId ?: ""

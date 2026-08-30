@@ -31,6 +31,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -40,6 +41,8 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import com.tanghulu.launcher.ui.AppState
 import com.tanghulu.launcher.ui.components.AnimatedAppear
 import com.tanghulu.launcher.ui.components.CardShape
@@ -153,10 +156,16 @@ private fun VersionPicker(state: AppState) {
 
 @Composable
 private fun rememberSkinBitmap(state: AppState): ImageBitmap? {
-    return remember(state.username, state.skinVersion) {
-        val f = SkinManager.skinFile(state.username.trim())
-        if (f != null && Files.isRegularFile(f)) runCatching { decodeImage(Files.readAllBytes(f)) }.getOrNull() else null
-    }
+    val username = state.username.trim()
+    val skinVersion = state.skinVersion
+    return produceState<ImageBitmap?>(initialValue = null, username, skinVersion) {
+        value = withContext(Dispatchers.IO) {
+            val f = SkinManager.skinFile(username)
+            if (f != null && Files.isRegularFile(f)) {
+                runCatching { decodeImage(Files.readAllBytes(f)) }.getOrNull()
+            } else null
+        }
+    }.value
 }
 
 @Composable

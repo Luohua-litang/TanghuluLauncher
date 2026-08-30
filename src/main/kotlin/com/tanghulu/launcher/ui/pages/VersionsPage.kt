@@ -193,7 +193,7 @@ private fun VersionIcon(type: String, size: Dp = 40.dp) {
         drawRect(top, size = Size(s, h))
         drawRect(sideDark, topLeft = Offset(0f, h), size = Size(s * 0.42f, s - h))
         drawRect(side, topLeft = Offset(s * 0.42f, h), size = Size(s * 0.58f, s - h))
-        // 草皮点缀
+        // Grass tuft detail
         val dot = s / 8f
         drawRect(Color(0xFF3E7A36), topLeft = Offset(s * 0.15f, h - dot * 0.8f), size = Size(dot, dot))
         drawRect(Color(0xFF84C96F), topLeft = Offset(s * 0.55f, h - dot * 0.8f), size = Size(dot, dot))

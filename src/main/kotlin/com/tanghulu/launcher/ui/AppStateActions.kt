@@ -3,6 +3,7 @@ package com.tanghulu.launcher.ui
 import com.tanghulu.launcher.core.DownloadSource
 import com.tanghulu.launcher.core.MinecraftLauncher
 import com.tanghulu.launcher.core.ModDownloader
+import com.tanghulu.launcher.core.ModItem
 import com.tanghulu.launcher.core.ModLoader
 import com.tanghulu.launcher.util.JavaRuntime
 import com.tanghulu.launcher.util.Log
@@ -13,7 +14,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.nio.file.Path
 
-// ================= 版本 =================
+// ================= Versions =================
 
 fun AppState.loadVersions() {
     if (versionsLoading) return
@@ -54,10 +55,18 @@ fun AppState.selectVersion(id: String) {
 }
 
 fun AppState.refreshInstalledLoaders() {
-    installedLoaders = detectInstalledLoaders()
+    val gameDir = effectiveGameDir()
+    val selected = selectedVersionId
+    scope.launch(Dispatchers.IO) {
+        val result = detectInstalledLoaders(gameDir, selected)
+        withContext(Dispatchers.Main) {
+            // Only update when the selection is unchanged, to avoid stale results overwriting newer ones during rapid switching
+            if (selectedVersionId == selected) installedLoaders = result
+        }
+    }
 }
 
-// ================= 启动 / 下载 / 安装 =================
+// ================= Launch / Download / Install =================
 
 fun AppState.launchGame(): Boolean {
     val name = username.trim()
@@ -83,6 +92,7 @@ fun AppState.launchGame(): Boolean {
         source = this@launchGame.source
         downloadAssets = this@launchGame.downloadAssets
         extraJvmArgs = this@launchGame.jvmArgs.trim()
+        isolated = this@launchGame.versionIsolation
     }
     scope.launch(Dispatchers.IO) {
         try {
@@ -173,7 +183,7 @@ fun AppState.installGame(versionId: String, instanceName: String, loaders: Map<M
 
 // ================= Mod =================
 
-/** 首次进入 Mod 页时加载 Modrinth 热门榜（前 50）。 */
+/** Load the trending list (top 50) when first entering the Mod page. */
 fun AppState.loadTrendingMods() {
     if (modLoading || modResults.isNotEmpty()) return
     modLoading = true; modProgress = null; modStatus = "正在加载 Modrinth 热门榜…"
@@ -184,7 +194,9 @@ fun AppState.loadTrendingMods() {
                 modResults = r; modLoading = false; modStatus = "Modrinth 热门榜 Top ${r.size}"
             }
         } catch (e: Exception) {
-            withContext(Dispatchers.Main) { modLoading = false; modStatus = "热门榜加载失败: ${e.message}" }
+            withContext(Dispatchers.Main) {
+                modLoading = false; modStatus = "热门榜加载失败: ${e.message}"
+            }
         }
     }
 }
@@ -197,21 +209,25 @@ fun AppState.searchMods() {
         try {
             val r = modDownloader.search(q, 30)
             withContext(Dispatchers.Main) {
+                if (modQuery.trim() != q) return@withContext
                 modResults = r; modLoading = false; modStatus = "找到 ${r.size} 个结果"
             }
         } catch (e: Exception) {
-            withContext(Dispatchers.Main) { modLoading = false; modStatus = "搜索失败: ${e.message}" }
+            withContext(Dispatchers.Main) {
+                if (modQuery.trim() != q) return@withContext
+                modLoading = false; modStatus = "搜索失败: ${e.message}"
+            }
         }
     }
 }
 
-fun AppState.downloadMod(mod: ModDownloader.Mod) {
+fun AppState.downloadMod(mod: ModItem) {
     modProgress = 0f; modStatus = "正在下载 ${mod.title}…"
     val gv = selectedVersionId ?: ""
-    val modsDir = effectiveGameDir().resolve("mods")
+    val dir = modsDir()
     scope.launch(Dispatchers.IO) {
         try {
-            val p = modDownloader.download(mod, gv, modLoader.modrinthId(), modsDir,
+            val p = modDownloader.download(mod, gv, modLoader.modrinthId(), dir,
                 { onLog(it) }, { pct, stg -> onProgress(pct, stg) })
             withContext(Dispatchers.Main) {
                 modProgress = null; modStatus = "已下载: ${p.fileName}"
@@ -231,7 +247,7 @@ fun AppState.fetchLoaderVersions(loader: ModLoader, gameVersion: String, onDone:
     }
 }
 
-// ================= 新闻 =================
+// ================= News =================
 
 fun AppState.loadNews(force: Boolean = false) {
     val now = System.currentTimeMillis()
@@ -246,7 +262,7 @@ fun AppState.loadNews(force: Boolean = false) {
         })
 }
 
-// ================= 皮肤 =================
+// ================= Skin =================
 
 fun AppState.uploadSkin(file: Path) {
     skinStatus = "正在上传皮肤…"
@@ -261,14 +277,19 @@ fun AppState.uploadSkin(file: Path) {
 }
 
 fun AppState.removeSkin() {
-    val ok = SkinManager.removeSkin(username.trim())
-    skinStatus = if (ok) "已移除皮肤" else "没有可移除的皮肤"
-    if (ok) skinVersion++
+    val name = username.trim()
+    scope.launch(Dispatchers.IO) {
+        val ok = SkinManager.removeSkin(name)
+        withContext(Dispatchers.Main) {
+            skinStatus = if (ok) "已移除皮肤" else "没有可移除的皮肤"
+            if (ok) skinVersion++
+        }
+    }
 }
 
 fun AppState.skinFilePath(): Path? = SkinManager.skinFile(username.trim())
 
-/** ModLoader 对应的 Modrinth loader 字符串；不可用于 Mod 检索的加载器返回 null。 */
+/** Modrinth loader string for this ModLoader; returns null for loaders that cannot be used for mod search. */
 fun ModLoader.modrinthId(): String? = when (this) {
     ModLoader.FABRIC -> "fabric"
     ModLoader.QUILT -> "quilt"

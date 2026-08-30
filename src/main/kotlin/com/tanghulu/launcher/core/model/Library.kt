@@ -3,20 +3,20 @@ package com.tanghulu.launcher.core.model
 import com.tanghulu.launcher.util.Json
 
 /**
- * 版本 JSON 中的库文件（library）条目。
+ * A library entry in the version JSON.
  */
 class Library(
     @JvmField val name: String?,
-    /** 规则列表，null 表示无条件允许 */
+    /** Rule list; null means allowed unconditionally */
     @JvmField val rules: List<Rule>?,
-    /** 主文件（jar）下载信息 */
+    /** Primary artifact (jar) download info */
     @JvmField val artifact: DownloadInfo?,
-    /** 分类下载：natives-windows / natives-osx / natives-linux 等 */
+    /** Classifier downloads: natives-windows / natives-osx / natives-linux etc. */
     @JvmField val classifiers: Map<String, DownloadInfo>,
-    /** 由 name 推导出的默认 artifact 路径（当 downloads.artifact 缺失时使用） */
+    /** Default artifact path derived from name (used when downloads.artifact is missing) */
     @JvmField val inferredPath: String?
 ) {
-    /** 判断此库在当前环境下是否被允许。 */
+    /** Whether this library is allowed in the current environment. */
     fun isAllowed(osName: String, hasCustomResolution: Boolean, isDemoUser: Boolean): Boolean {
         if (rules.isNullOrEmpty()) return true
         var allowed = false
@@ -28,13 +28,13 @@ class Library(
         return allowed
     }
 
-    /** 获取主文件相对于游戏目录的路径。 */
+    /** Path of the primary artifact relative to the game directory. */
     fun artifactPath(): String? {
         if (artifact != null && artifact.path != null) return artifact.path
         return inferredPath
     }
 
-    /** 获取主文件下载 URL（可能为 null）。 */
+    /** Download URL of the primary artifact (may be null). */
     fun artifactUrl(): String? = artifact?.url
 
     fun artifactSha1(): String? = artifact?.sha1
@@ -67,7 +67,7 @@ class Library(
                     }
                 }
             }
-            // 旧格式：natives 字段 + downloads.classifiers
+            // Legacy format: natives field + downloads.classifiers
             if (classifiers.isEmpty()) {
                 val natives = Json.asObject(Json.opt(json, "natives"))
                 if (natives != null && downloads != null) {
@@ -90,8 +90,8 @@ class Library(
         }
 
         /**
-         * 由 "group:artifact:version[:classifier]" 形式的 name 推导出
-         * "libraries/org/group/artifact/version/artifact-version.jar" 相对路径。
+         * Derive the relative path "libraries/org/group/artifact/version/artifact-version.jar"
+         * from a name of the form "group:artifact:version[:classifier]".
          */
         @JvmStatic
         fun inferPath(name: String): String? {
