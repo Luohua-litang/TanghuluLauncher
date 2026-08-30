@@ -13,7 +13,7 @@ import androidx.compose.ui.text.font.FontFamily
 /** An optional accent color theme. */
 data class AccentOption(val name: String, val color: Color)
 
-/** Preset accent colors (grass green is the Minecraft-style default). */
+/** Preset accent colors (red is the default). */
 val AccentOptions = listOf(
     AccentOption("Indigo", Color(0xFF3F51B5)),
     AccentOption("Blue", Color(0xFF2196F3)),
@@ -26,7 +26,7 @@ val AccentOptions = listOf(
 /** Minecraft grass green / dirt brown. */
 val GrassGreen = Color(0xFF4CAF50)
 val DirtBrown = Color(0xFF8D6E63)
-val DefaultAccent = AccentOptions[2].color
+val DefaultAccent = AccentOptions[4].color
 
 /** The built-in Microsoft YaHei font family. */
 @OptIn(ExperimentalTextApi::class)

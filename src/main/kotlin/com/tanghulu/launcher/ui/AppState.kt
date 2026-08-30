@@ -67,10 +67,10 @@ class AppState {
     var jvmArgs by mutableStateOf("")
     var downloadAssets by mutableStateOf(true)
     var gameDir by mutableStateOf("")
-    var darkMode by mutableStateOf(true)
+    var darkMode by mutableStateOf(false)
     var versionIsolation by mutableStateOf(false)
     var developerMode by mutableStateOf(false)
-    var accentName by mutableStateOf("Green")
+    var accentName by mutableStateOf("Red")
     var customAccent by mutableStateOf<Color?>(null)
 
     // Versions
@@ -126,7 +126,7 @@ class AppState {
             try { Files.newInputStream(configFile).use { p.load(it) } } catch (_: Exception) {}
         }
         username = p.getProperty("username", "Steve")
-        accentName = p.getProperty("theme", "Green")
+        accentName = p.getProperty("theme", "Red")
         customAccent = p.getProperty("customThemeColor", "").takeIf { it.isNotBlank() }?.let { parseColor(it) }
         javaPath = p.getProperty("javaPath", "")
         memory = p.getProperty("memory", "2 GB")
@@ -134,7 +134,7 @@ class AppState {
         jvmArgs = p.getProperty("jvmArgs", "")
         downloadAssets = p.getProperty("downloadAssets", "true").toBoolean()
         gameDir = p.getProperty("gameDir", "")
-        darkMode = p.getProperty("darkMode", "true").toBoolean()
+        darkMode = p.getProperty("darkMode", "false").toBoolean()
         versionIsolation = p.getProperty("versionIsolation", "false").toBoolean()
         developerMode = p.getProperty("developerMode", "false").toBoolean()
         if (javaPath.isBlank()) detectJava()

@@ -92,6 +92,30 @@ object HttpUtil {
         }
     }
 
+    /**
+     * Measure the round-trip latency of a URL with a single lightweight GET request
+     * (response body discarded). Returns the elapsed time in milliseconds, or throws on failure.
+     */
+    @JvmStatic
+    @Throws(IOException::class)
+    fun ping(url: String): Long {
+        val start = System.nanoTime()
+        val req = HttpRequest.newBuilder(URI.create(url))
+            .header("User-Agent", USER_AGENT)
+            .timeout(Duration.ofSeconds(15))
+            .GET()
+            .build()
+        val resp = try {
+            CLIENT.send(req, HttpResponse.BodyHandlers.discarding())
+        } catch (e: InterruptedException) {
+            Thread.currentThread().interrupt()
+            throw IOException("Interrupted while pinging $url", e)
+        }
+        val elapsedMs = (System.nanoTime() - start) / 1_000_000
+        if (resp.statusCode() in 200..399) return elapsedMs
+        throw IOException("HTTP ${resp.statusCode()} for $url")
+    }
+
     /** Download progress callback. total == -1 means the total size is unknown. */
     fun interface ProgressListener {
         fun onProgress(downloaded: Long, total: Long)

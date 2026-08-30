@@ -21,8 +21,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowDropDown
 import androidx.compose.material.icons.rounded.FolderOpen
+import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.List
 import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -65,6 +67,8 @@ import kotlinx.coroutines.withContext
 @Composable
 fun SettingsPage(state: AppState) {
     var showLogViewer by remember { mutableStateOf(false) }
+    var showSystemInfo by remember { mutableStateOf(false) }
+    var showLatencyTest by remember { mutableStateOf(false) }
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -167,16 +171,30 @@ fun SettingsPage(state: AppState) {
             }
             if (state.developerMode) {
                 Spacer(Modifier.height(14.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Button(onClick = { showLogViewer = true }) {
-                        Icon(Icons.Rounded.List, null, Modifier.size(18.dp))
-                        Spacer(Modifier.width(6.dp))
-                        Text("查看日志")
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Button(onClick = { showLogViewer = true }) {
+                            Icon(Icons.Rounded.List, null, Modifier.size(18.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text("查看日志")
+                        }
+                        OutlinedButton(onClick = { showSystemInfo = true }) {
+                            Icon(Icons.Rounded.Info, null, Modifier.size(18.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text("系统诊断")
+                        }
                     }
-                    OutlinedButton(onClick = { openFolder(OperatingSystem.appDataDir().resolve("logs").toString()) }) {
-                        Icon(Icons.Rounded.FolderOpen, null, Modifier.size(18.dp))
-                        Spacer(Modifier.width(6.dp))
-                        Text("日志目录")
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        OutlinedButton(onClick = { showLatencyTest = true }) {
+                            Icon(Icons.Rounded.Speed, null, Modifier.size(18.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text("延迟测试")
+                        }
+                        OutlinedButton(onClick = { openFolder(OperatingSystem.appDataDir().resolve("logs").toString()) }) {
+                            Icon(Icons.Rounded.FolderOpen, null, Modifier.size(18.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text("日志目录")
+                        }
                     }
                 }
             }
@@ -184,6 +202,8 @@ fun SettingsPage(state: AppState) {
     }
 
     if (showLogViewer) LogViewerDialog(state) { showLogViewer = false }
+    if (showSystemInfo) SystemInfoDialog(state) { showSystemInfo = false }
+    if (showLatencyTest) LatencyTestDialog(state) { showLatencyTest = false }
 }
 
 @Composable
